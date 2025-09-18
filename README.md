@@ -6,17 +6,32 @@ A collection of comprehensive guides for AWS and Kubernetes, designed for interv
 
 ### AWS Guides
 - **[AWS Best Practices Interview Guide](aws-best-practices-interview-guide.md)** - Security, cost optimization, reliability, performance, and operational excellence
+- **[AWS Best Practices (Improved)](aws-best-practices-improved-guide.md)** - Enhanced concept-first approach with business context and real-world examples
 - **[AWS WAF Learning Guide](aws-waf-learning-guide.md)** - Complete WAF implementation with rule configurations and examples
+- **[AWS WAF (Improved)](aws-waf-improved-guide.md)** - Comprehensive web security guide with threat analysis and business impact
 - **[AWS Cost Optimization Scenarios](aws-cost-optimization-interview-scenarios.md)** - 7 real-world scenarios with specific savings and implementations
+- **[AWS Cost Optimization (Improved)](aws-cost-optimization-improved-guide.md)** - Strategic cost management with psychology and transformation stories
+- **[AWS Landing Zone (Improved)](aws-landing-zone-improved-guide.md)** - Multi-account strategy with governance and compliance focus
 
 ### EKS & Kubernetes Guides
 - **[EKS Security Best Practices](eks-security-best-practices-guide.md)** - Comprehensive security guide with RBAC, network policies, and compliance
+- **[EKS Security (Improved)](eks-security-improved-guide.md)** - Enhanced security guide with threat modeling and business risk analysis
 - **[EKS Logging Strategies](eks-logging-strategies-guide.md)** - Multiple logging patterns with sidecar implementations and monitoring
+- **[EKS Logging (Improved)](eks-logging-improved-guide.md)** - Strategic logging approach with observability and operational excellence
 - **[EKS Zero-Downtime Upgrades](eks-zero-downtime-upgrade-guide.md)** - Detailed upgrade procedures with rollback strategies
+- **[EKS Zero-Downtime (Improved)](eks-zero-downtime-improved-guide.md)** - Business continuity focused upgrade strategies with risk management
 - **[EKS PVC & EBS CSI Driver Mastery](eks-pvc-ebs-csi-mastery-guide.md)** - Complete PVC guide with all CSI parameters and troubleshooting
 - **[Karpenter Complete Guide](karpenter-complete-guide.md)** - From concepts to production implementation
+- **[Karpenter (Improved)](karpenter-improved-guide.md)** - Kubernetes autoscaling transformation with cost optimization focus
 - **[EKS Cluster Access Guide](eks-cluster-access-complete-guide.md)** - All access methods including AWS Access Entries
 - **[Kubecost with EKS Guide](kubecost-eks-complete-guide.md)** - Complete cost monitoring and optimization implementation
+- **[Kubecost (Improved)](kubecost-improved-guide.md)** - Strategic cost visibility with FinOps and business transformation
+
+### Advanced Topics
+- **[Kubernetes CRDs Complete Guide](kubernetes-crd-complete-guide.md)** - Custom Resource Definitions with Go implementation and real-world examples
+- **[HashiCorp Vault with EKS](vault-eks-secrets-complete-guide.md)** - Enterprise secrets management with multiple integration patterns
+- **[Rancher Multi-Cloud Management (Improved)](rancher-improved-guide.md)** - Multi-cloud Kubernetes management with business transformation focus
+- **[GitHub Actions with AWS (Improved)](github-actions-improved-guide.md)** - CI/CD evolution with DevOps transformation strategies
 
 ## 🎯 Key Features
 
@@ -30,9 +45,12 @@ A collection of comprehensive guides for AWS and Kubernetes, designed for interv
 
 Each guide is self-contained and can be used independently. Start with the guide most relevant to your current needs:
 
-- **New to AWS?** → Start with [AWS Best Practices Guide](aws-best-practices-interview-guide.md)
-- **EKS Beginner?** → Begin with [EKS Security Best Practices](eks-security-best-practices-guide.md)
-- **Cost Optimization?** → Check [Cost Optimization Scenarios](aws-cost-optimization-interview-scenarios.md) and [Kubecost Guide](kubecost-eks-complete-guide.md)
+- **New to AWS?** → Start with [AWS Best Practices (Improved)](aws-best-practices-improved-guide.md)
+- **EKS Beginner?** → Begin with [EKS Security (Improved)](eks-security-improved-guide.md)
+- **Cost Optimization?** → Check [AWS Cost Optimization (Improved)](aws-cost-optimization-improved-guide.md) and [Kubecost (Improved)](kubecost-improved-guide.md)
+- **Secrets Management?** → Explore [Vault with EKS](vault-eks-secrets-complete-guide.md)
+- **Custom Kubernetes Resources?** → Learn [CRDs with Go](kubernetes-crd-complete-guide.md)
+- **Multi-Cloud Management?** → Review [Rancher (Improved)](rancher-improved-guide.md)
 - **Interview Prep?** → Review all guides for comprehensive coverage
 
 ## 📋 Use Cases
