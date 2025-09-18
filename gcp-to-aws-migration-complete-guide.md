@@ -16,42 +16,232 @@
 
 ## Migration Overview & Strategy
 
-### Migration Approaches
+### Why Migrate from GCP to AWS?
 
-#### 1. Lift and Shift (Rehost)
+#### Common Business Drivers:
+- **Cost Optimization**: AWS often provides better pricing models for enterprise workloads
+- **Service Breadth**: AWS has the most comprehensive service portfolio (200+ services)
+- **Global Reach**: AWS has more regions and availability zones worldwide
+- **Enterprise Features**: Better enterprise support, compliance, and governance tools
+- **Talent Availability**: Larger pool of AWS-skilled professionals
+- **Vendor Strategy**: Organizational decision to standardize on AWS
+- **Advanced Services**: Access to cutting-edge AI/ML, analytics, and serverless capabilities
+
+### Migration Strategies (6 R's Framework)
+
+#### 1. Rehost (Lift and Shift)
+**What it means**: Move applications as-is with minimal changes
 - **Timeline**: 3-6 months
 - **Risk**: Low
 - **Cost**: Medium
-- **Benefits**: Quick migration, minimal code changes
+- **Effort**: Low
+- **Benefits**: Quick migration, minimal code changes, immediate cost savings
+- **Drawbacks**: Doesn't leverage cloud-native features
+- **Best for**: Legacy applications, tight timelines, proof of concept
+- **Example**: Moving GCE VMs to EC2 instances with same configurations
 
 #### 2. Replatform (Lift, Tinker, and Shift)
+**What it means**: Make minimal cloud optimizations without changing core architecture
 - **Timeline**: 6-12 months
 - **Risk**: Medium
 - **Cost**: Medium-High
-- **Benefits**: Cloud-native features, better performance
+- **Effort**: Medium
+- **Benefits**: Some cloud benefits, improved performance, better cost optimization
+- **Drawbacks**: Limited cloud-native advantages
+- **Best for**: Applications that can benefit from managed services
+- **Example**: Moving from self-managed databases to RDS, using ALB instead of custom load balancers
 
-#### 3. Refactor/Re-architect
+#### 3. Repurchase (Drop and Shop)
+**What it means**: Replace with different product, typically SaaS
+- **Timeline**: 3-9 months
+- **Risk**: Medium
+- **Cost**: Variable
+- **Effort**: Medium
+- **Benefits**: Reduced maintenance, automatic updates, focus on business logic
+- **Drawbacks**: Vendor lock-in, potential feature gaps
+- **Best for**: Non-differentiating applications
+- **Example**: Moving from self-hosted CRM to Salesforce
+
+#### 4. Refactor/Re-architect
+**What it means**: Redesign application to be cloud-native
 - **Timeline**: 12-24 months
 - **Risk**: High
 - **Cost**: High
-- **Benefits**: Full cloud-native, optimal performance
+- **Effort**: High
+- **Benefits**: Full cloud-native benefits, optimal performance, scalability
+- **Drawbacks**: High complexity, resource intensive
+- **Best for**: Critical applications, long-term strategic applications
+- **Example**: Breaking monolith into microservices, using serverless architecture
 
-### Service Mapping: GCP to AWS
+#### 5. Retire
+**What it means**: Decommission applications that are no longer needed
+- **Timeline**: 1-3 months
+- **Risk**: Low
+- **Cost**: Savings
+- **Effort**: Low
+- **Benefits**: Reduced complexity, cost savings, security improvement
+- **Best for**: Redundant or obsolete applications
 
-| GCP Service | AWS Equivalent | Migration Complexity |
-|-------------|----------------|---------------------|
-| GKE | EKS | Medium |
-| Cloud SQL | RDS | Low |
-| Cloud Storage | S3 | Low |
-| Cloud Functions | Lambda | Medium |
-| Cloud Run | Fargate | Medium |
-| BigQuery | Redshift/Athena | High |
-| Cloud Pub/Sub | SQS/SNS | Medium |
-| Cloud Load Balancing | ALB/NLB | Low |
-| Cloud CDN | CloudFront | Low |
-| Cloud IAM | IAM | High |
-| Cloud Monitoring | CloudWatch | Medium |
-| Cloud Logging | CloudWatch Logs | Medium |
+#### 6. Retain
+**What it means**: Keep applications in current environment
+- **Timeline**: N/A
+- **Risk**: Low
+- **Cost**: Current state
+- **Effort**: None
+- **Benefits**: No migration risk
+- **Best for**: Applications with compliance restrictions, recent investments
+
+### Migration Decision Framework
+
+#### Application Assessment Matrix:
+
+| Criteria | Weight | Rehost | Replatform | Refactor | Repurchase | Retire | Retain |
+|----------|--------|--------|------------|----------|------------|--------|---------|
+| Business Criticality | 25% | Low-Med | Medium | High | Medium | Low | Any |
+| Technical Debt | 20% | High | Medium | Low | N/A | N/A | High |
+| Compliance Requirements | 15% | Any | Any | Any | Limited | N/A | High |
+| Time Constraints | 15% | Tight | Medium | Flexible | Medium | Any | N/A |
+| Budget Available | 10% | Limited | Medium | High | Variable | None | Current |
+| Team Skills | 10% | Basic | Intermediate | Advanced | Basic | Any | Current |
+| Integration Complexity | 5% | Simple | Medium | Complex | Simple | N/A | Any |
+
+#### Decision Tree Process:
+1. **Is the application still needed?** → No: Retire
+2. **Are there compliance/regulatory restrictions?** → Yes: Retain or careful Rehost
+3. **Is there a suitable SaaS alternative?** → Yes: Consider Repurchase
+4. **Is the application business-critical?** → Yes: Consider Refactor
+5. **Are there tight time constraints?** → Yes: Rehost
+6. **Is the application cloud-ready?** → Partially: Replatform
+7. **Default**: Rehost with future Replatform plan
+
+### Migration Phases Overview
+
+#### Phase 0: Assessment & Planning (4-8 weeks)
+**Objectives**:
+- Complete inventory of current GCP resources
+- Dependency mapping and impact analysis
+- Cost analysis and business case development
+- Risk assessment and mitigation planning
+- Team training and skill development
+
+**Key Activities**:
+- Infrastructure discovery and documentation
+- Application portfolio analysis
+- Network and security assessment
+- Compliance and governance review
+- Migration strategy selection per application
+- Detailed project planning and timeline
+
+**Deliverables**:
+- Current state architecture documentation
+- Application migration strategy matrix
+- Detailed migration plan with timelines
+- Risk register and mitigation strategies
+- Cost-benefit analysis
+- Team training plan
+
+#### Phase 1: Foundation Setup (2-4 weeks)
+**Objectives**:
+- Establish AWS landing zone
+- Set up core networking and security
+- Implement governance and compliance frameworks
+- Establish monitoring and logging
+
+#### Phase 2: Pilot Migration (4-6 weeks)
+**Objectives**:
+- Migrate non-critical applications first
+- Validate migration processes and tools
+- Test disaster recovery procedures
+- Refine migration playbooks
+
+#### Phase 3: Wave-based Migration (12-24 weeks)
+**Objectives**:
+- Execute migration in planned waves
+- Minimize business disruption
+- Ensure data consistency and integrity
+- Validate application functionality
+
+#### Phase 4: Optimization & Modernization (8-16 weeks)
+**Objectives**:
+- Optimize costs and performance
+- Implement cloud-native features
+- Enhance security and compliance
+- Decommission GCP resources
+
+### Comprehensive Service Mapping: GCP to AWS
+
+#### Compute Services
+| GCP Service | AWS Equivalent | Migration Complexity | Key Considerations |
+|-------------|----------------|---------------------|--------------------|
+| Compute Engine | EC2 | Low | Instance type mapping, pricing model differences |
+| GKE | EKS | Medium | Kubernetes version compatibility, add-on migration |
+| Cloud Run | Fargate | Medium | Container orchestration differences |
+| App Engine | Elastic Beanstalk | High | Platform-specific features, runtime differences |
+| Cloud Functions | Lambda | Medium | Runtime support, trigger mechanisms |
+
+#### Storage Services
+| GCP Service | AWS Equivalent | Migration Complexity | Key Considerations |
+|-------------|----------------|---------------------|--------------------|
+| Cloud Storage | S3 | Low | Bucket policies, lifecycle management |
+| Persistent Disk | EBS | Low | Volume types, performance characteristics |
+| Filestore | EFS | Medium | NFS compatibility, performance tuning |
+| Cloud SQL | RDS | Low-Medium | Engine versions, parameter groups |
+| Cloud Spanner | DynamoDB/Aurora | High | Data model differences, query patterns |
+| BigQuery | Redshift/Athena | High | SQL dialect differences, data loading |
+| Cloud Bigtable | DynamoDB | High | NoSQL model differences |
+| Firestore | DynamoDB | Medium | Document vs key-value model |
+
+#### Networking Services
+| GCP Service | AWS Equivalent | Migration Complexity | Key Considerations |
+|-------------|----------------|---------------------|--------------------|
+| VPC | VPC | Low | CIDR planning, subnet design |
+| Cloud Load Balancing | ALB/NLB/CLB | Low-Medium | Load balancer types, health checks |
+| Cloud CDN | CloudFront | Low | Cache behaviors, origin configuration |
+| Cloud DNS | Route 53 | Low | DNS record migration |
+| Cloud NAT | NAT Gateway | Low | Routing configuration |
+| Cloud VPN | VPN Gateway | Medium | Tunnel configuration, routing |
+| Cloud Interconnect | Direct Connect | High | Physical connectivity, BGP configuration |
+
+#### Security & Identity
+| GCP Service | AWS Equivalent | Migration Complexity | Key Considerations |
+|-------------|----------------|---------------------|--------------------|
+| Cloud IAM | IAM | High | Role mapping, policy translation |
+| Cloud KMS | KMS | Medium | Key management, encryption patterns |
+| Cloud Security Command Center | Security Hub | Medium | Finding formats, integration patterns |
+| Cloud Armor | WAF & Shield | Medium | Rule translation, DDoS protection |
+| Binary Authorization | ? | High | No direct equivalent, custom solution needed |
+
+#### Analytics & Big Data
+| GCP Service | AWS Equivalent | Migration Complexity | Key Considerations |
+|-------------|----------------|---------------------|--------------------|
+| BigQuery | Redshift/Athena | High | SQL dialect, data warehouse design |
+| Dataflow | Kinesis Analytics | High | Stream processing paradigms |
+| Dataproc | EMR | Medium | Spark/Hadoop job migration |
+| Pub/Sub | SQS/SNS/Kinesis | Medium | Messaging patterns, ordering guarantees |
+| Cloud Composer | Step Functions | High | Workflow orchestration differences |
+
+#### Machine Learning & AI
+| GCP Service | AWS Equivalent | Migration Complexity | Key Considerations |
+|-------------|----------------|---------------------|--------------------|
+| AI Platform | SageMaker | High | Model training, deployment patterns |
+| AutoML | SageMaker Autopilot | Medium | Automated ML workflows |
+| Cloud Vision API | Rekognition | Low | API compatibility, accuracy differences |
+| Cloud Natural Language | Comprehend | Low | API response formats |
+| Cloud Translation | Translate | Low | Language support, pricing models |
+
+#### Monitoring & Operations
+| GCP Service | AWS Equivalent | Migration Complexity | Key Considerations |
+|-------------|----------------|---------------------|--------------------|
+| Cloud Monitoring | CloudWatch | Medium | Metrics, dashboards, alerting |
+| Cloud Logging | CloudWatch Logs | Medium | Log aggregation, retention policies |
+| Cloud Trace | X-Ray | Medium | Distributed tracing patterns |
+| Cloud Debugger | ? | High | No direct equivalent |
+| Error Reporting | ? | Medium | Custom solution with CloudWatch |
+
+#### Migration Complexity Legend:
+- **Low**: Direct service mapping, minimal configuration changes
+- **Medium**: Some architectural changes, moderate effort required
+- **High**: Significant re-architecture, extensive testing needed
 
 ---
 
