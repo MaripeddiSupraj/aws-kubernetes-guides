@@ -1233,6 +1233,1325 @@ resource "aws_kms_key_policy" "example" {
 }
 ```
 
-This comprehensive guide covers KMS fundamentals, key types, creation methods, and access control. The guide includes practical examples and real-world scenarios for implementing KMS in production environments.
+---
 
-Would you like me to continue with the remaining sections covering encryption operations, key rotation, AWS service integration, and advanced topics like multi-region keys and monitoring?
+## Encryption & Decryption Operations
+
+### 1. Direct Encryption/Decryption
+
+#### Small Data Encryption (< 4KB)
+**Use Case**: Encrypting small pieces of data like passwords, API keys, configuration values
+
+```bash
+# Encrypt small data directly
+ENCRYPTED_DATA=$(aws kms encrypt \
+  --key-id alias/my-app-key \
+  --plaintext "MySecretPassword123!" \
+  --query 'CiphertextBlob' \
+  --output text)
+
+echo "Encrypted data: $ENCRYPTED_DATA"
+
+# Decrypt the data
+DECRYPTED_DATA=$(aws kms decrypt \
+  --ciphertext-blob fileb://<(echo "$ENCRYPTED_DATA" | base64 -d) \
+  --query 'Plaintext' \
+  --output text | base64 -d)
+
+echo "Decrypted data: $DECRYPTED_DATA"
+```
+
+#### Encryption with Context
+**Encryption Context**: Additional authenticated data that must be provided for decryption
+
+```bash
+# Encrypt with encryption context
+aws kms encrypt \
+  --key-id alias/my-app-key \
+  --plaintext "Sensitive customer data" \
+  --encryption-context Department=Finance,Project=Audit2024 \
+  --query 'CiphertextBlob' \
+  --output text > encrypted-data.txt
+
+# Decrypt with same encryption context
+aws kms decrypt \
+  --ciphertext-blob fileb://encrypted-data.txt \
+  --encryption-context Department=Finance,Project=Audit2024 \
+  --query 'Plaintext' \
+  --output text | base64 -d
+
+# This will FAIL - wrong context
+aws kms decrypt \
+  --ciphertext-blob fileb://encrypted-data.txt \
+  --encryption-context Department=HR,Project=Audit2024
+```
+
+### 2. Data Key Operations (Envelope Encryption)
+
+#### Generate Data Encryption Key
+```bash
+# Generate data key
+aws kms generate-data-key \
+  --key-id alias/my-app-key \
+  --key-spec AES_256 \
+  --encryption-context Application=WebApp,Environment=Production \
+  --output json > data-key.json
+
+# Extract plaintext and encrypted data key
+PLAINTEXT_KEY=$(cat data-key.json | jq -r '.Plaintext')
+ENCRYPTED_KEY=$(cat data-key.json | jq -r '.CiphertextBlob')
+
+echo "Plaintext DEK: $PLAINTEXT_KEY"
+echo "Encrypted DEK: $ENCRYPTED_KEY"
+```
+
+#### Practical Envelope Encryption Example
+```bash
+#!/bin/bash
+# envelope-encrypt.sh - Encrypt large file using envelope encryption
+
+FILE_TO_ENCRYPT=$1
+KEY_ALIAS=$2
+
+if [ -z "$FILE_TO_ENCRYPT" ] || [ -z "$KEY_ALIAS" ]; then
+    echo "Usage: $0 <file-to-encrypt> <kms-key-alias>"
+    exit 1
+fi
+
+# Step 1: Generate data encryption key
+echo "Generating data encryption key..."
+aws kms generate-data-key \
+  --key-id "$KEY_ALIAS" \
+  --key-spec AES_256 \
+  --encryption-context FileName=$(basename "$FILE_TO_ENCRYPT") \
+  --output json > temp-key.json
+
+# Step 2: Extract keys
+PLAINTEXT_KEY=$(cat temp-key.json | jq -r '.Plaintext' | base64 -d | xxd -p -c 256)
+ENCRYPTED_KEY=$(cat temp-key.json | jq -r '.CiphertextBlob')
+
+# Step 3: Encrypt file with AES-256
+echo "Encrypting file with data key..."
+openssl enc -aes-256-cbc -in "$FILE_TO_ENCRYPT" -out "${FILE_TO_ENCRYPT}.encrypted" -K "$PLAINTEXT_KEY" -iv $(openssl rand -hex 16)
+
+# Step 4: Save encrypted data key alongside encrypted file
+echo "$ENCRYPTED_KEY" > "${FILE_TO_ENCRYPT}.key"
+
+# Step 5: Clean up plaintext key
+unset PLAINTEXT_KEY
+rm temp-key.json
+
+echo "File encrypted successfully:"
+echo "  Encrypted file: ${FILE_TO_ENCRYPT}.encrypted"
+echo "  Encrypted key:  ${FILE_TO_ENCRYPT}.key"
+```
+
+#### Envelope Decryption Example
+```bash
+#!/bin/bash
+# envelope-decrypt.sh - Decrypt file using envelope encryption
+
+ENCRYPTED_FILE=$1
+
+if [ -z "$ENCRYPTED_FILE" ]; then
+    echo "Usage: $0 <encrypted-file>"
+    exit 1
+fi
+
+KEY_FILE="${ENCRYPTED_FILE%.encrypted}.key"
+OUTPUT_FILE="${ENCRYPTED_FILE%.encrypted}.decrypted"
+
+# Step 1: Decrypt the data encryption key
+echo "Decrypting data encryption key..."
+PLAINTEXT_KEY=$(aws kms decrypt \
+  --ciphertext-blob fileb://"$KEY_FILE" \
+  --encryption-context FileName=$(basename "${ENCRYPTED_FILE%.encrypted}") \
+  --query 'Plaintext' \
+  --output text | base64 -d | xxd -p -c 256)
+
+# Step 2: Decrypt file with recovered key
+echo "Decrypting file..."
+openssl enc -aes-256-cbc -d -in "$ENCRYPTED_FILE" -out "$OUTPUT_FILE" -K "$PLAINTEXT_KEY" -iv $(head -c 16 "$ENCRYPTED_FILE" | xxd -p -c 256)
+
+# Step 3: Clean up
+unset PLAINTEXT_KEY
+
+echo "File decrypted successfully: $OUTPUT_FILE"
+```
+
+### 3. Programming Language Examples
+
+#### Python Example
+```python
+#!/usr/bin/env python3
+# kms_encryption_example.py
+
+import boto3
+import base64
+import json
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+class KMSEncryption:
+    def __init__(self, key_id, region='us-east-1'):
+        self.kms_client = boto3.client('kms', region_name=region)
+        self.key_id = key_id
+    
+    def encrypt_small_data(self, plaintext, encryption_context=None):
+        """Encrypt small data (< 4KB) directly with KMS"""
+        try:
+            response = self.kms_client.encrypt(
+                KeyId=self.key_id,
+                Plaintext=plaintext,
+                EncryptionContext=encryption_context or {}
+            )
+            return base64.b64encode(response['CiphertextBlob']).decode('utf-8')
+        except Exception as e:
+            print(f"Encryption failed: {e}")
+            return None
+    
+    def decrypt_small_data(self, ciphertext_blob, encryption_context=None):
+        """Decrypt small data directly with KMS"""
+        try:
+            ciphertext_binary = base64.b64decode(ciphertext_blob)
+            response = self.kms_client.decrypt(
+                CiphertextBlob=ciphertext_binary,
+                EncryptionContext=encryption_context or {}
+            )
+            return response['Plaintext'].decode('utf-8')
+        except Exception as e:
+            print(f"Decryption failed: {e}")
+            return None
+    
+    def generate_data_key(self, key_spec='AES_256', encryption_context=None):
+        """Generate data encryption key for envelope encryption"""
+        try:
+            response = self.kms_client.generate_data_key(
+                KeyId=self.key_id,
+                KeySpec=key_spec,
+                EncryptionContext=encryption_context or {}
+            )
+            return {
+                'plaintext_key': response['Plaintext'],
+                'encrypted_key': base64.b64encode(response['CiphertextBlob']).decode('utf-8')
+            }
+        except Exception as e:
+            print(f"Data key generation failed: {e}")
+            return None
+    
+    def decrypt_data_key(self, encrypted_key, encryption_context=None):
+        """Decrypt data encryption key"""
+        try:
+            ciphertext_binary = base64.b64decode(encrypted_key)
+            response = self.kms_client.decrypt(
+                CiphertextBlob=ciphertext_binary,
+                EncryptionContext=encryption_context or {}
+            )
+            return response['Plaintext']
+        except Exception as e:
+            print(f"Data key decryption failed: {e}")
+            return None
+    
+    def encrypt_large_data(self, data, encryption_context=None):
+        """Encrypt large data using envelope encryption"""
+        # Generate data key
+        key_data = self.generate_data_key(encryption_context=encryption_context)
+        if not key_data:
+            return None
+        
+        # Use Fernet for symmetric encryption
+        fernet = Fernet(base64.urlsafe_b64encode(key_data['plaintext_key'][:32]))
+        encrypted_data = fernet.encrypt(data.encode('utf-8'))
+        
+        return {
+            'encrypted_data': base64.b64encode(encrypted_data).decode('utf-8'),
+            'encrypted_key': key_data['encrypted_key']
+        }
+    
+    def decrypt_large_data(self, encrypted_data, encrypted_key, encryption_context=None):
+        """Decrypt large data using envelope encryption"""
+        # Decrypt data key
+        plaintext_key = self.decrypt_data_key(encrypted_key, encryption_context)
+        if not plaintext_key:
+            return None
+        
+        # Decrypt data
+        fernet = Fernet(base64.urlsafe_b64encode(plaintext_key[:32]))
+        encrypted_binary = base64.b64decode(encrypted_data)
+        decrypted_data = fernet.decrypt(encrypted_binary)
+        
+        return decrypted_data.decode('utf-8')
+
+# Usage example
+if __name__ == "__main__":
+    # Initialize KMS encryption
+    kms_enc = KMSEncryption('alias/my-app-key')
+    
+    # Example 1: Small data encryption
+    print("=== Small Data Encryption ===")
+    small_data = "MySecretPassword123!"
+    context = {'Application': 'WebApp', 'Environment': 'Production'}
+    
+    encrypted = kms_enc.encrypt_small_data(small_data, context)
+    print(f"Encrypted: {encrypted[:50]}...")
+    
+    decrypted = kms_enc.decrypt_small_data(encrypted, context)
+    print(f"Decrypted: {decrypted}")
+    
+    # Example 2: Large data encryption
+    print("\n=== Large Data Encryption ===")
+    large_data = "This is a large piece of data that needs to be encrypted using envelope encryption. " * 100
+    
+    result = kms_enc.encrypt_large_data(large_data, context)
+    if result:
+        print(f"Encrypted data length: {len(result['encrypted_data'])}")
+        print(f"Encrypted key: {result['encrypted_key'][:50]}...")
+        
+        # Decrypt
+        decrypted_large = kms_enc.decrypt_large_data(
+            result['encrypted_data'], 
+            result['encrypted_key'], 
+            context
+        )
+        print(f"Decryption successful: {len(decrypted_large)} characters")
+        print(f"Data matches: {large_data == decrypted_large}")
+```
+
+#### Node.js Example
+```javascript
+// kms-encryption.js
+const AWS = require('aws-sdk');
+const crypto = require('crypto');
+
+class KMSEncryption {
+    constructor(keyId, region = 'us-east-1') {
+        this.kms = new AWS.KMS({ region });
+        this.keyId = keyId;
+    }
+    
+    async encryptSmallData(plaintext, encryptionContext = {}) {
+        try {
+            const params = {
+                KeyId: this.keyId,
+                Plaintext: plaintext,
+                EncryptionContext: encryptionContext
+            };
+            
+            const result = await this.kms.encrypt(params).promise();
+            return result.CiphertextBlob.toString('base64');
+        } catch (error) {
+            console.error('Encryption failed:', error);
+            return null;
+        }
+    }
+    
+    async decryptSmallData(ciphertextBlob, encryptionContext = {}) {
+        try {
+            const params = {
+                CiphertextBlob: Buffer.from(ciphertextBlob, 'base64'),
+                EncryptionContext: encryptionContext
+            };
+            
+            const result = await this.kms.decrypt(params).promise();
+            return result.Plaintext.toString('utf-8');
+        } catch (error) {
+            console.error('Decryption failed:', error);
+            return null;
+        }
+    }
+    
+    async generateDataKey(keySpec = 'AES_256', encryptionContext = {}) {
+        try {
+            const params = {
+                KeyId: this.keyId,
+                KeySpec: keySpec,
+                EncryptionContext: encryptionContext
+            };
+            
+            const result = await this.kms.generateDataKey(params).promise();
+            return {
+                plaintextKey: result.Plaintext,
+                encryptedKey: result.CiphertextBlob.toString('base64')
+            };
+        } catch (error) {
+            console.error('Data key generation failed:', error);
+            return null;
+        }
+    }
+    
+    async encryptLargeData(data, encryptionContext = {}) {
+        // Generate data key
+        const keyData = await this.generateDataKey('AES_256', encryptionContext);
+        if (!keyData) return null;
+        
+        // Encrypt data with AES-256-GCM
+        const iv = crypto.randomBytes(16);
+        const cipher = crypto.createCipher('aes-256-gcm', keyData.plaintextKey);
+        
+        let encrypted = cipher.update(data, 'utf8', 'base64');
+        encrypted += cipher.final('base64');
+        const authTag = cipher.getAuthTag();
+        
+        return {
+            encryptedData: encrypted,
+            encryptedKey: keyData.encryptedKey,
+            iv: iv.toString('base64'),
+            authTag: authTag.toString('base64')
+        };
+    }
+    
+    async decryptLargeData(encryptedData, encryptedKey, iv, authTag, encryptionContext = {}) {
+        try {
+            // Decrypt data key
+            const params = {
+                CiphertextBlob: Buffer.from(encryptedKey, 'base64'),
+                EncryptionContext: encryptionContext
+            };
+            
+            const keyResult = await this.kms.decrypt(params).promise();
+            const plaintextKey = keyResult.Plaintext;
+            
+            // Decrypt data
+            const decipher = crypto.createDecipher('aes-256-gcm', plaintextKey);
+            decipher.setAuthTag(Buffer.from(authTag, 'base64'));
+            
+            let decrypted = decipher.update(encryptedData, 'base64', 'utf8');
+            decrypted += decipher.final('utf8');
+            
+            return decrypted;
+        } catch (error) {
+            console.error('Large data decryption failed:', error);
+            return null;
+        }
+    }
+}
+
+// Usage example
+async function example() {
+    const kmsEnc = new KMSEncryption('alias/my-app-key');
+    const context = { Application: 'NodeApp', Environment: 'Production' };
+    
+    // Small data encryption
+    console.log('=== Small Data Encryption ===');
+    const smallData = 'MySecretAPIKey123!';
+    
+    const encrypted = await kmsEnc.encryptSmallData(smallData, context);
+    console.log(`Encrypted: ${encrypted.substring(0, 50)}...`);
+    
+    const decrypted = await kmsEnc.decryptSmallData(encrypted, context);
+    console.log(`Decrypted: ${decrypted}`);
+    
+    // Large data encryption
+    console.log('\n=== Large Data Encryption ===');
+    const largeData = 'Large data content '.repeat(1000);
+    
+    const result = await kmsEnc.encryptLargeData(largeData, context);
+    if (result) {
+        console.log(`Encrypted data length: ${result.encryptedData.length}`);
+        
+        const decryptedLarge = await kmsEnc.decryptLargeData(
+            result.encryptedData,
+            result.encryptedKey,
+            result.iv,
+            result.authTag,
+            context
+        );
+        
+        console.log(`Decryption successful: ${decryptedLarge.length} characters`);
+        console.log(`Data matches: ${largeData === decryptedLarge}`);
+    }
+}
+
+example().catch(console.error);
+```
+
+---
+
+## Key Rotation & Lifecycle Management
+
+### 1. Automatic Key Rotation
+
+#### Understanding Key Rotation
+**What happens during rotation**:
+- KMS creates new cryptographic material
+- Old key material remains available for decryption
+- New encryptions use new key material
+- No application changes required
+
+#### Enable Automatic Rotation
+```bash
+# Enable automatic rotation (yearly)
+aws kms enable-key-rotation --key-id alias/my-app-key
+
+# Check rotation status
+aws kms get-key-rotation-status --key-id alias/my-app-key
+
+# Disable rotation
+aws kms disable-key-rotation --key-id alias/my-app-key
+```
+
+#### Terraform Configuration
+```hcl
+resource "aws_kms_key" "app_key" {
+  description             = "Application encryption key"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true  # Enable automatic rotation
+  
+  tags = {
+    Name = "app-encryption-key"
+    AutoRotation = "enabled"
+  }
+}
+
+# Monitor rotation with CloudWatch
+resource "aws_cloudwatch_metric_alarm" "key_rotation_alarm" {
+  alarm_name          = "kms-key-rotation-overdue"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = "1"
+  metric_name         = "DaysUntilKeyRotation"
+  namespace           = "AWS/KMS"
+  period              = "86400"  # 24 hours
+  statistic           = "Maximum"
+  threshold           = "400"     # Alert if > 400 days
+  alarm_description   = "KMS key rotation is overdue"
+  
+  dimensions = {
+    KeyId = aws_kms_key.app_key.key_id
+  }
+}
+```
+
+### 2. Manual Key Rotation
+
+#### When to Use Manual Rotation
+- Compliance requirements for specific rotation schedules
+- Security incident response
+- Key compromise scenarios
+- Custom rotation policies
+
+#### Manual Rotation Process
+```bash
+#!/bin/bash
+# manual-key-rotation.sh
+
+OLD_KEY_ALIAS="alias/my-app-key"
+NEW_KEY_DESCRIPTION="Application key - rotated $(date +%Y-%m-%d)"
+
+echo "Starting manual key rotation..."
+
+# Step 1: Create new key
+echo "Creating new key..."
+NEW_KEY_ID=$(aws kms create-key \
+  --description "$NEW_KEY_DESCRIPTION" \
+  --key-usage ENCRYPT_DECRYPT \
+  --key-spec SYMMETRIC_DEFAULT \
+  --query 'KeyMetadata.KeyId' \
+  --output text)
+
+echo "New key created: $NEW_KEY_ID"
+
+# Step 2: Copy key policy from old key
+echo "Copying key policy..."
+aws kms get-key-policy \
+  --key-id "$OLD_KEY_ALIAS" \
+  --policy-name default \
+  --output text > old-key-policy.json
+
+aws kms put-key-policy \
+  --key-id "$NEW_KEY_ID" \
+  --policy-name default \
+  --policy file://old-key-policy.json
+
+# Step 3: Create temporary alias for new key
+echo "Creating temporary alias..."
+aws kms create-alias \
+  --alias-name "${OLD_KEY_ALIAS}-new" \
+  --target-key-id "$NEW_KEY_ID"
+
+# Step 4: Test new key
+echo "Testing new key..."
+TEST_ENCRYPTED=$(aws kms encrypt \
+  --key-id "$NEW_KEY_ID" \
+  --plaintext "test-data" \
+  --query 'CiphertextBlob' \
+  --output text)
+
+TEST_DECRYPTED=$(aws kms decrypt \
+  --ciphertext-blob fileb://<(echo "$TEST_ENCRYPTED" | base64 -d) \
+  --query 'Plaintext' \
+  --output text | base64 -d)
+
+if [ "$TEST_DECRYPTED" = "test-data" ]; then
+    echo "New key test successful"
+else
+    echo "New key test failed - aborting rotation"
+    exit 1
+fi
+
+# Step 5: Update alias to point to new key
+echo "Updating alias to new key..."
+aws kms update-alias \
+  --alias-name "$OLD_KEY_ALIAS" \
+  --target-key-id "$NEW_KEY_ID"
+
+# Step 6: Clean up temporary alias
+aws kms delete-alias --alias-name "${OLD_KEY_ALIAS}-new"
+
+echo "Manual key rotation completed successfully"
+echo "New key ID: $NEW_KEY_ID"
+echo "Old key remains available for decryption"
+
+# Clean up
+rm old-key-policy.json
+```
+
+### 3. Key Lifecycle Management
+
+#### Key Lifecycle Automation
+```python
+#!/usr/bin/env python3
+# key_lifecycle_manager.py
+
+import boto3
+import json
+from datetime import datetime, timedelta
+from typing import List, Dict
+
+class KMSLifecycleManager:
+    def __init__(self, region='us-east-1'):
+        self.kms = boto3.client('kms', region_name=region)
+        self.cloudwatch = boto3.client('cloudwatch', region_name=region)
+    
+    def get_key_age(self, key_id: str) -> int:
+        """Get key age in days"""
+        try:
+            response = self.kms.describe_key(KeyId=key_id)
+            creation_date = response['KeyMetadata']['CreationDate']
+            age = (datetime.now(creation_date.tzinfo) - creation_date).days
+            return age
+        except Exception as e:
+            print(f"Error getting key age: {e}")
+            return 0
+    
+    def get_key_usage_metrics(self, key_id: str, days: int = 30) -> Dict:
+        """Get key usage metrics from CloudWatch"""
+        try:
+            end_time = datetime.utcnow()
+            start_time = end_time - timedelta(days=days)
+            
+            # Get encryption operations
+            encrypt_response = self.cloudwatch.get_metric_statistics(
+                Namespace='AWS/KMS',
+                MetricName='NumberOfRequestsSucceeded',
+                Dimensions=[
+                    {'Name': 'KeyId', 'Value': key_id},
+                    {'Name': 'Operation', 'Value': 'Encrypt'}
+                ],
+                StartTime=start_time,
+                EndTime=end_time,
+                Period=86400,  # 1 day
+                Statistics=['Sum']
+            )
+            
+            # Get decryption operations
+            decrypt_response = self.cloudwatch.get_metric_statistics(
+                Namespace='AWS/KMS',
+                MetricName='NumberOfRequestsSucceeded',
+                Dimensions=[
+                    {'Name': 'KeyId', 'Value': key_id},
+                    {'Name': 'Operation', 'Value': 'Decrypt'}
+                ],
+                StartTime=start_time,
+                EndTime=end_time,
+                Period=86400,
+                Statistics=['Sum']
+            )
+            
+            encrypt_count = sum(point['Sum'] for point in encrypt_response['Datapoints'])
+            decrypt_count = sum(point['Sum'] for point in decrypt_response['Datapoints'])
+            
+            return {
+                'encrypt_operations': encrypt_count,
+                'decrypt_operations': decrypt_count,
+                'total_operations': encrypt_count + decrypt_count
+            }
+        except Exception as e:
+            print(f"Error getting usage metrics: {e}")
+            return {'encrypt_operations': 0, 'decrypt_operations': 0, 'total_operations': 0}
+    
+    def identify_unused_keys(self, min_age_days: int = 90, max_usage: int = 10) -> List[Dict]:
+        """Identify potentially unused keys"""
+        unused_keys = []
+        
+        try:
+            # List all customer managed keys
+            paginator = self.kms.get_paginator('list_keys')
+            
+            for page in paginator.paginate():
+                for key in page['Keys']:
+                    key_id = key['KeyId']
+                    
+                    # Get key details
+                    key_details = self.kms.describe_key(KeyId=key_id)
+                    key_metadata = key_details['KeyMetadata']
+                    
+                    # Skip AWS managed keys
+                    if key_metadata['KeyManager'] == 'AWS':
+                        continue
+                    
+                    # Skip disabled or deleted keys
+                    if key_metadata['KeyState'] not in ['Enabled']:
+                        continue
+                    
+                    # Check age
+                    age = self.get_key_age(key_id)
+                    if age < min_age_days:
+                        continue
+                    
+                    # Check usage
+                    usage = self.get_key_usage_metrics(key_id)
+                    if usage['total_operations'] <= max_usage:
+                        unused_keys.append({
+                            'key_id': key_id,
+                            'description': key_metadata.get('Description', 'No description'),
+                            'age_days': age,
+                            'usage': usage,
+                            'creation_date': key_metadata['CreationDate'].isoformat()
+                        })
+        
+        except Exception as e:
+            print(f"Error identifying unused keys: {e}")
+        
+        return unused_keys
+    
+    def generate_lifecycle_report(self) -> Dict:
+        """Generate comprehensive key lifecycle report"""
+        report = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'total_keys': 0,
+            'enabled_keys': 0,
+            'disabled_keys': 0,
+            'pending_deletion': 0,
+            'rotation_enabled': 0,
+            'unused_keys': [],
+            'old_keys': [],
+            'high_usage_keys': []
+        }
+        
+        try:
+            paginator = self.kms.get_paginator('list_keys')
+            
+            for page in paginator.paginate():
+                for key in page['Keys']:
+                    key_id = key['KeyId']
+                    
+                    # Get key details
+                    key_details = self.kms.describe_key(KeyId=key_id)
+                    key_metadata = key_details['KeyMetadata']
+                    
+                    # Skip AWS managed keys
+                    if key_metadata['KeyManager'] == 'AWS':
+                        continue
+                    
+                    report['total_keys'] += 1
+                    
+                    # Count by state
+                    state = key_metadata['KeyState']
+                    if state == 'Enabled':
+                        report['enabled_keys'] += 1
+                    elif state == 'Disabled':
+                        report['disabled_keys'] += 1
+                    elif state == 'PendingDeletion':
+                        report['pending_deletion'] += 1
+                    
+                    # Check rotation status
+                    try:
+                        rotation_status = self.kms.get_key_rotation_status(KeyId=key_id)
+                        if rotation_status['KeyRotationEnabled']:
+                            report['rotation_enabled'] += 1
+                    except:
+                        pass
+                    
+                    # Analyze key age and usage
+                    if state == 'Enabled':
+                        age = self.get_key_age(key_id)
+                        usage = self.get_key_usage_metrics(key_id)
+                        
+                        key_info = {
+                            'key_id': key_id,
+                            'description': key_metadata.get('Description', 'No description'),
+                            'age_days': age,
+                            'usage': usage
+                        }
+                        
+                        # Identify unused keys (>90 days old, <10 operations)
+                        if age > 90 and usage['total_operations'] < 10:
+                            report['unused_keys'].append(key_info)
+                        
+                        # Identify old keys (>2 years)
+                        if age > 730:
+                            report['old_keys'].append(key_info)
+                        
+                        # Identify high usage keys (>1000 operations)
+                        if usage['total_operations'] > 1000:
+                            report['high_usage_keys'].append(key_info)
+        
+        except Exception as e:
+            print(f"Error generating lifecycle report: {e}")
+        
+        return report
+    
+    def cleanup_unused_keys(self, dry_run: bool = True) -> List[str]:
+        """Schedule deletion of unused keys"""
+        unused_keys = self.identify_unused_keys()
+        scheduled_keys = []
+        
+        for key_info in unused_keys:
+            key_id = key_info['key_id']
+            
+            if dry_run:
+                print(f"DRY RUN: Would schedule deletion of key {key_id}")
+                scheduled_keys.append(key_id)
+            else:
+                try:
+                    # Schedule key deletion (30 days)
+                    self.kms.schedule_key_deletion(
+                        KeyId=key_id,
+                        PendingWindowInDays=30
+                    )
+                    print(f"Scheduled deletion of key {key_id}")
+                    scheduled_keys.append(key_id)
+                except Exception as e:
+                    print(f"Failed to schedule deletion of key {key_id}: {e}")
+        
+        return scheduled_keys
+
+# Usage example
+if __name__ == "__main__":
+    manager = KMSLifecycleManager()
+    
+    # Generate lifecycle report
+    print("Generating KMS lifecycle report...")
+    report = manager.generate_lifecycle_report()
+    
+    print(f"\n=== KMS Lifecycle Report ===")
+    print(f"Total customer managed keys: {report['total_keys']}")
+    print(f"Enabled keys: {report['enabled_keys']}")
+    print(f"Disabled keys: {report['disabled_keys']}")
+    print(f"Keys pending deletion: {report['pending_deletion']}")
+    print(f"Keys with rotation enabled: {report['rotation_enabled']}")
+    print(f"Unused keys: {len(report['unused_keys'])}")
+    print(f"Old keys (>2 years): {len(report['old_keys'])}")
+    print(f"High usage keys: {len(report['high_usage_keys'])}")
+    
+    # Show unused keys
+    if report['unused_keys']:
+        print(f"\n=== Unused Keys ===")
+        for key in report['unused_keys']:
+            print(f"Key: {key['key_id']}")
+            print(f"  Description: {key['description']}")
+            print(f"  Age: {key['age_days']} days")
+            print(f"  Usage: {key['usage']['total_operations']} operations")
+            print()
+    
+    # Cleanup unused keys (dry run)
+    print("\n=== Cleanup Simulation ===")
+    scheduled = manager.cleanup_unused_keys(dry_run=True)
+    print(f"Would schedule {len(scheduled)} keys for deletion")
+```
+
+---
+
+## Integration with AWS Services
+
+### 1. Amazon S3 Integration
+
+#### S3 Bucket Encryption Configuration
+```bash
+# Enable default encryption with KMS
+aws s3api put-bucket-encryption \
+  --bucket my-secure-bucket \
+  --server-side-encryption-configuration '{
+    "Rules": [
+      {
+        "ApplyServerSideEncryptionByDefault": {
+          "SSEAlgorithm": "aws:kms",
+          "KMSMasterKeyID": "alias/s3-encryption-key"
+        },
+        "BucketKeyEnabled": true
+      }
+    ]
+  }'
+
+# Verify encryption configuration
+aws s3api get-bucket-encryption --bucket my-secure-bucket
+```
+
+#### Terraform S3 + KMS Configuration
+```hcl
+# S3 encryption key
+resource "aws_kms_key" "s3_key" {
+  description             = "S3 bucket encryption key"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+  
+  tags = {
+    Name = "s3-encryption-key"
+    Service = "S3"
+  }
+}
+
+resource "aws_kms_alias" "s3_key" {
+  name          = "alias/s3-encryption-key"
+  target_key_id = aws_kms_key.s3_key.key_id
+}
+
+# S3 bucket with KMS encryption
+resource "aws_s3_bucket" "secure_bucket" {
+  bucket = "my-secure-bucket-${random_id.bucket_suffix.hex}"
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "secure_bucket" {
+  bucket = aws_s3_bucket.secure_bucket.id
+  
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = aws_kms_key.s3_key.arn
+      sse_algorithm     = "aws:kms"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+# Bucket policy for KMS access
+resource "aws_s3_bucket_policy" "secure_bucket" {
+  bucket = aws_s3_bucket.secure_bucket.id
+  policy = data.aws_iam_policy_document.s3_bucket_policy.json
+}
+
+data "aws_iam_policy_document" "s3_bucket_policy" {
+  statement {
+    sid    = "DenyUnencryptedObjectUploads"
+    effect = "Deny"
+    
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    
+    actions = ["s3:PutObject"]
+    
+    resources = ["${aws_s3_bucket.secure_bucket.arn}/*"]
+    
+    condition {
+      test     = "StringNotEquals"
+      variable = "s3:x-amz-server-side-encryption"
+      values   = ["aws:kms"]
+    }
+  }
+  
+  statement {
+    sid    = "DenyWrongKMSKey"
+    effect = "Deny"
+    
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    
+    actions = ["s3:PutObject"]
+    
+    resources = ["${aws_s3_bucket.secure_bucket.arn}/*"]
+    
+    condition {
+      test     = "StringNotEquals"
+      variable = "s3:x-amz-server-side-encryption-aws-kms-key-id"
+      values   = [aws_kms_key.s3_key.arn]
+    }
+  }
+}
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+```
+
+### 2. Amazon RDS Integration
+
+#### RDS Encryption Configuration
+```bash
+# Create encrypted RDS instance
+aws rds create-db-instance \
+  --db-instance-identifier mydb-encrypted \
+  --db-instance-class db.t3.micro \
+  --engine mysql \
+  --master-username admin \
+  --master-user-password MySecurePassword123! \
+  --allocated-storage 20 \
+  --storage-encrypted \
+  --kms-key-id alias/rds-encryption-key \
+  --vpc-security-group-ids sg-12345678
+
+# Create encrypted snapshot
+aws rds create-db-snapshot \
+  --db-instance-identifier mydb-encrypted \
+  --db-snapshot-identifier mydb-encrypted-snapshot-$(date +%Y%m%d)
+
+# Copy snapshot to another region with different key
+aws rds copy-db-snapshot \
+  --source-db-snapshot-identifier arn:aws:rds:us-east-1:123456789012:snapshot:mydb-encrypted-snapshot-20240101 \
+  --target-db-snapshot-identifier mydb-encrypted-snapshot-us-west-2 \
+  --kms-key-id alias/rds-encryption-key-west \
+  --source-region us-east-1
+```
+
+#### Terraform RDS + KMS Configuration
+```hcl
+# RDS encryption key
+resource "aws_kms_key" "rds_key" {
+  description             = "RDS encryption key"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+  
+  tags = {
+    Name = "rds-encryption-key"
+    Service = "RDS"
+  }
+}
+
+resource "aws_kms_alias" "rds_key" {
+  name          = "alias/rds-encryption-key"
+  target_key_id = aws_kms_key.rds_key.key_id
+}
+
+# RDS subnet group
+resource "aws_db_subnet_group" "main" {
+  name       = "main-db-subnet-group"
+  subnet_ids = var.private_subnet_ids
+  
+  tags = {
+    Name = "Main DB subnet group"
+  }
+}
+
+# RDS instance with encryption
+resource "aws_db_instance" "main" {
+  identifier = "myapp-database"
+  
+  # Engine configuration
+  engine         = "mysql"
+  engine_version = "8.0"
+  instance_class = "db.t3.micro"
+  
+  # Storage configuration
+  allocated_storage     = 20
+  max_allocated_storage = 100
+  storage_type         = "gp2"
+  storage_encrypted    = true
+  kms_key_id          = aws_kms_key.rds_key.arn
+  
+  # Database configuration
+  db_name  = "myapp"
+  username = "admin"
+  password = var.db_password  # Use AWS Secrets Manager in production
+  
+  # Network configuration
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  
+  # Backup configuration
+  backup_retention_period = 7
+  backup_window          = "03:00-04:00"
+  maintenance_window     = "sun:04:00-sun:05:00"
+  
+  # Monitoring
+  monitoring_interval = 60
+  monitoring_role_arn = aws_iam_role.rds_monitoring.arn
+  
+  # Security
+  deletion_protection = true
+  skip_final_snapshot = false
+  final_snapshot_identifier = "myapp-database-final-snapshot-${formatdate("YYYY-MM-DD-hhmm", timestamp())}"
+  
+  tags = {
+    Name = "MyApp Database"
+    Environment = var.environment
+  }
+}
+```
+
+### 3. AWS Lambda Integration
+
+#### Lambda Environment Variable Encryption
+```bash
+# Create Lambda function with encrypted environment variables
+aws lambda create-function \
+  --function-name my-secure-function \
+  --runtime python3.9 \
+  --role arn:aws:iam::123456789012:role/LambdaExecutionRole \
+  --handler lambda_function.lambda_handler \
+  --zip-file fileb://function.zip \
+  --environment Variables='{"DB_PASSWORD":"encrypted-password","API_KEY":"encrypted-api-key"}' \
+  --kms-key-arn arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012
+
+# Update environment variables
+aws lambda update-function-configuration \
+  --function-name my-secure-function \
+  --environment Variables='{"DB_PASSWORD":"new-encrypted-password","API_KEY":"new-encrypted-api-key"}' \
+  --kms-key-arn arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012
+```
+
+#### Lambda Function with KMS Integration
+```python
+# lambda_function.py
+import boto3
+import os
+import json
+from base64 import b64decode
+
+# Initialize KMS client
+kms = boto3.client('kms')
+
+# Decrypt environment variables on cold start
+encrypted_db_password = os.environ['DB_PASSWORD']
+encrypted_api_key = os.environ['API_KEY']
+
+# Decrypt once and cache
+db_password = kms.decrypt(
+    CiphertextBlob=b64decode(encrypted_db_password),
+    EncryptionContext={'LambdaFunctionName': os.environ['AWS_LAMBDA_FUNCTION_NAME']}
+)['Plaintext'].decode('utf-8')
+
+api_key = kms.decrypt(
+    CiphertextBlob=b64decode(encrypted_api_key),
+    EncryptionContext={'LambdaFunctionName': os.environ['AWS_LAMBDA_FUNCTION_NAME']}
+)['Plaintext'].decode('utf-8')
+
+def lambda_handler(event, context):
+    # Use decrypted credentials
+    print(f"Using DB password: {db_password[:4]}...")
+    print(f"Using API key: {api_key[:8]}...")
+    
+    # Example: Encrypt sensitive data before storing
+    sensitive_data = event.get('sensitive_data')
+    if sensitive_data:
+        encrypted_data = kms.encrypt(
+            KeyId='alias/lambda-data-key',
+            Plaintext=sensitive_data,
+            EncryptionContext={
+                'LambdaFunctionName': context.function_name,
+                'RequestId': context.aws_request_id
+            }
+        )
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'message': 'Data encrypted successfully',
+                'encrypted_data': encrypted_data['CiphertextBlob'].decode('latin1')
+            })
+        }
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps({'message': 'Function executed successfully'})
+    }
+```
+
+#### Terraform Lambda + KMS Configuration
+```hcl
+# Lambda encryption key
+resource "aws_kms_key" "lambda_key" {
+  description             = "Lambda environment variables encryption key"
+  deletion_window_in_days = 30
+  
+  tags = {
+    Name = "lambda-encryption-key"
+    Service = "Lambda"
+  }
+}
+
+resource "aws_kms_alias" "lambda_key" {
+  name          = "alias/lambda-encryption-key"
+  target_key_id = aws_kms_key.lambda_key.key_id
+}
+
+# Lambda function with encrypted environment variables
+resource "aws_lambda_function" "secure_function" {
+  filename         = "function.zip"
+  function_name    = "my-secure-function"
+  role            = aws_iam_role.lambda_role.arn
+  handler         = "lambda_function.lambda_handler"
+  runtime         = "python3.9"
+  
+  # Encrypted environment variables
+  environment {
+    variables = {
+      DB_PASSWORD = aws_kms_ciphertext.db_password.ciphertext_blob
+      API_KEY     = aws_kms_ciphertext.api_key.ciphertext_blob
+    }
+  }
+  
+  kms_key_arn = aws_kms_key.lambda_key.arn
+  
+  depends_on = [aws_cloudwatch_log_group.lambda_logs]
+}
+
+# Encrypt sensitive values
+resource "aws_kms_ciphertext" "db_password" {
+  key_id = aws_kms_key.lambda_key.key_id
+  plaintext = var.db_password
+  
+  context = {
+    LambdaFunctionName = "my-secure-function"
+  }
+}
+
+resource "aws_kms_ciphertext" "api_key" {
+  key_id = aws_kms_key.lambda_key.key_id
+  plaintext = var.api_key
+  
+  context = {
+    LambdaFunctionName = "my-secure-function"
+  }
+}
+
+# IAM role for Lambda
+resource "aws_iam_role" "lambda_role" {
+  name = "lambda-execution-role"
+  
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# IAM policy for KMS access
+resource "aws_iam_role_policy" "lambda_kms_policy" {
+  name = "lambda-kms-policy"
+  role = aws_iam_role.lambda_role.id
+  
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:Encrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = [
+          aws_kms_key.lambda_key.arn,
+          "alias/lambda-data-key"
+        ]
+        Condition = {
+          StringEquals = {
+            "kms:EncryptionContext:LambdaFunctionName" = "my-secure-function"
+          }
+        }
+      }
+    ]
+  })
+}
+```
+
+### 4. Amazon EBS Integration
+
+#### EBS Volume Encryption
+```bash
+# Create encrypted EBS volume
+aws ec2 create-volume \
+  --size 100 \
+  --volume-type gp3 \
+  --availability-zone us-east-1a \
+  --encrypted \
+  --kms-key-id alias/ebs-encryption-key \
+  --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value=MyEncryptedVolume}]'
+
+# Enable EBS encryption by default
+aws ec2 enable-ebs-encryption-by-default
+
+# Set default KMS key for EBS encryption
+aws ec2 modify-ebs-default-kms-key-id --kms-key-id alias/ebs-encryption-key
+
+# Create encrypted snapshot
+aws ec2 create-snapshot \
+  --volume-id vol-1234567890abcdef0 \
+  --description "Encrypted snapshot $(date +%Y-%m-%d)"
+
+# Copy snapshot to another region with different key
+aws ec2 copy-snapshot \
+  --source-region us-east-1 \
+  --source-snapshot-id snap-1234567890abcdef0 \
+  --destination-region us-west-2 \
+  --kms-key-id alias/ebs-encryption-key-west \
+  --description "Cross-region encrypted snapshot"
+```
+
+#### Terraform EBS + KMS Configuration
+```hcl
+# EBS encryption key
+resource "aws_kms_key" "ebs_key" {
+  description             = "EBS volume encryption key"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+  
+  tags = {
+    Name = "ebs-encryption-key"
+    Service = "EBS"
+  }
+}
+
+resource "aws_kms_alias" "ebs_key" {
+  name          = "alias/ebs-encryption-key"
+  target_key_id = aws_kms_key.ebs_key.key_id
+}
+
+# Enable EBS encryption by default
+resource "aws_ebs_encryption_by_default" "example" {
+  enabled = true
+}
+
+# Set default KMS key for EBS
+resource "aws_ebs_default_kms_key" "example" {
+  key_arn = aws_kms_key.ebs_key.arn
+}
+
+# EC2 instance with encrypted root volume
+resource "aws_instance" "secure_instance" {
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = "t3.micro"
+  
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 20
+    encrypted   = true
+    kms_key_id  = aws_kms_key.ebs_key.arn
+  }
+  
+  # Additional encrypted volume
+  ebs_block_device {
+    device_name = "/dev/sdf"
+    volume_type = "gp3"
+    volume_size = 100
+    encrypted   = true
+    kms_key_id  = aws_kms_key.ebs_key.arn
+  }
+  
+  tags = {
+    Name = "Secure Instance"
+  }
+}
+```
+
+This completes the comprehensive AWS KMS guide with practical examples for encryption operations, key rotation, lifecycle management, and integration with major AWS services. The guide provides everything needed to implement KMS in production environments with security best practices.
