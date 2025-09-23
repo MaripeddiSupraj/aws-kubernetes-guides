@@ -1,1438 +1,1614 @@
-# AWS Disaster Recovery: Complete Planning and Implementation Guide
+# AWS Disaster Recovery & Business Continuity Complete Guide
 
-## 🎯 Understanding Disaster Recovery: The Business Reality
+## Table of Contents
+1. [DR Fundamentals & Concepts](#dr-fundamentals--concepts)
+2. [AWS DR Strategies & Patterns](#aws-dr-strategies--patterns)
+3. [RTO/RPO Requirements & SLA Design](#rtorpo-requirements--sla-design)
+4. [Multi-Region Architecture](#multi-region-architecture)
+5. [Database DR Strategies](#database-dr-strategies)
+6. [Application-Level DR](#application-level-dr)
+7. [Infrastructure as Code for DR](#infrastructure-as-code-for-dr)
+8. [Monitoring & Alerting](#monitoring--alerting)
+9. [Testing & Validation](#testing--validation)
+10. [Cost Optimization](#cost-optimization)
+11. [Interview Scenarios](#interview-scenarios)
 
-### The Cost of Downtime
+---
 
-**Real-World Downtime Impact:**
-```
-Industry Downtime Costs (per hour):
-• E-commerce: $300,000 - $1,000,000
-• Financial Services: $2,600,000 - $5,000,000
-• Healthcare: $636,000 - $8,000,000
-• Manufacturing: $50,000 - $500,000
-• SaaS Platforms: $140,000 - $540,000
+## DR Fundamentals & Concepts
 
-Additional Hidden Costs:
-• Customer churn: 25% after major outage
-• Brand reputation damage: 6-12 months recovery
-• Regulatory fines: Up to $10M for financial services
-• Employee productivity loss: 40% during recovery
-• Legal liability: Class action lawsuits
-```
+### Key Metrics
+- **RTO (Recovery Time Objective)**: Maximum acceptable downtime
+- **RPO (Recovery Point Objective)**: Maximum acceptable data loss
+- **MTTR (Mean Time To Recovery)**: Average time to restore service
+- **MTBF (Mean Time Between Failures)**: Average time between incidents
 
-**Disaster Types and Frequency:**
-```
-Natural Disasters:
-• Earthquakes: 1 in 500 year probability per region
-• Floods: 1 in 100 year probability
-• Hurricanes: Annual in certain regions
-• Wildfires: Increasing frequency due to climate change
+### DR Strategy Categories
 
-Human-Caused Disasters:
-• Cyber attacks: 1 every 39 seconds globally
-• Data center failures: 25% experience outages annually
-• Network outages: 88% of companies experience
-• Human error: 95% of successful cyber attacks
-• Power grid failures: Regional blackouts
-```
+#### 1. Backup & Restore (Pilot Light)
+- **RTO**: Hours to days
+- **RPO**: Hours
+- **Cost**: Lowest
+- **Use Case**: Non-critical applications
 
-**Business Continuity Requirements:**
-```
-Regulatory Compliance:
-• SOX: Financial data availability requirements
-• HIPAA: Healthcare data protection and availability
-• PCI DSS: Payment processing continuity
-• GDPR: Data availability and recovery obligations
-• Basel III: Banking operational resilience
-
-Business Requirements:
-• Revenue protection during outages
-• Customer experience continuity
-• Competitive advantage maintenance
-• Stakeholder confidence preservation
-• Market position protection
-```
-
-### Why AWS for Disaster Recovery?
-
-**AWS DR Value Proposition:**
-
-**Infrastructure Benefits:**
-• 31 regions with 99 availability zones
-• Global network with low-latency connections
-• 99.99% SLA for most services
-• Automated failover capabilities
-• Pay-as-you-go DR resources
-• Elastic scaling during disasters
-
-**Service Integration:**
-• Native backup and replication services
-• Cross-region data synchronization
-• Automated recovery orchestration
-• Infrastructure as Code (IaC) support
-• Monitoring and alerting integration
-• Compliance and audit capabilities
-
-**Business Impact Examples:**
-
-**Global E-commerce Platform:**
-• Challenge: Black Friday traffic with zero tolerance for downtime
-• Risk: $50M revenue loss per hour of downtime
-• Solution: Multi-region active-active DR with Route 53 failover
-• Result: 99.99% uptime during peak season, $200M revenue protected
-
-**Healthcare SaaS Provider:**
-• Challenge: HIPAA compliance with 4-hour RTO requirement
-• Risk: $1.5M regulatory fines, patient safety concerns
-• Solution: Pilot Light DR with automated failover
-• Result: 2-hour actual RTO, zero compliance violations
-
-**Financial Services Company:**
-• Challenge: Regulatory requirement for 1-hour RTO/15-minute RPO
-• Risk: $10M daily regulatory fines, trading license suspension
-• Solution: Warm Standby with real-time data replication
-• Result: 45-minute RTO, 5-minute RPO achieved
-
-## 🏗️ AWS DR Architecture Patterns
-
-### Understanding RTO and RPO
-
-**Recovery Time Objective (RTO):**
-```
-Definition: Maximum acceptable time to restore service after disaster
-
-Business Impact by RTO:
-• 0-1 hour: Mission-critical systems (trading, emergency services)
-• 1-4 hours: High-priority business systems (e-commerce, banking)
-• 4-24 hours: Important business systems (CRM, ERP)
-• 24+ hours: Non-critical systems (reporting, analytics)
-
-Cost Relationship:
-• Lower RTO = Higher DR costs
-• Exponential cost increase as RTO approaches zero
-• Balance business needs with budget constraints
-```
-
-**Recovery Point Objective (RPO):**
-```
-Definition: Maximum acceptable data loss measured in time
-
-Business Impact by RPO:
-• 0-15 minutes: Financial transactions, real-time systems
-• 15 minutes-1 hour: Customer-facing applications
-• 1-4 hours: Internal business applications
-• 4+ hours: Reporting and analytics systems
-
-Data Loss Impact:
-• Financial: $5,600 per minute of data loss
-• Healthcare: Patient safety and compliance risks
-• E-commerce: Customer trust and revenue loss
-• Manufacturing: Supply chain disruption
-```
-
-### AWS DR Patterns Overview
-
-**Four Main DR Patterns:**
-
-**1. Backup and Restore (Lowest Cost)**
-```
-What it is: Regular backups with manual restoration process
-RTO: 24+ hours
-RPO: 1-24 hours
-Cost: Lowest (backup storage only)
-Use case: Non-critical systems, development environments
-```
-
-**2. Pilot Light (Low Cost)**
-```
-What it is: Minimal DR environment with core components always running
-RTO: 1-4 hours
-RPO: 15 minutes-1 hour
-Cost: Low (minimal infrastructure + data replication)
-Use case: Important business systems with moderate availability needs
-```
-
-**3. Warm Standby (Medium Cost)**
-```
-What it is: Scaled-down but functional DR environment
-RTO: 5-30 minutes
-RPO: 5-15 minutes
-Cost: Medium (running infrastructure + data replication)
-Use case: High-priority systems with strict availability requirements
-```
-
-**4. Multi-Site Active-Active (Highest Cost)**
-```
-What it is: Full production environment in multiple regions
-RTO: 0-5 minutes (automatic failover)
-RPO: 0-5 minutes (real-time replication)
-Cost: Highest (duplicate infrastructure)
-Use case: Mission-critical systems with zero tolerance for downtime
-```
-
-## 🚀 Complete Implementation: E-commerce Platform DR
-
-### Business Scenario
-
-**Application Architecture:**
-```
-E-commerce Platform Components:
-• Web Application: React frontend on CloudFront + S3
-• API Gateway: RESTful APIs with Lambda functions
-• Application Servers: ECS containers with Auto Scaling
-• Database: RDS PostgreSQL with read replicas
-• Cache: ElastiCache Redis cluster
-• Search: OpenSearch cluster
-• File Storage: S3 buckets for product images
-• CDN: CloudFront for global content delivery
-• DNS: Route 53 for traffic routing
-```
-
-**Business Requirements:**
-```
-Availability Requirements:
-• Black Friday: 99.99% uptime (5.25 minutes downtime max)
-• Regular operations: 99.9% uptime (8.77 hours downtime max)
-• Peak traffic: 10x normal load handling
-• Global users: <200ms response time worldwide
-
-Recovery Requirements:
-• RTO: 15 minutes for critical path (checkout, payments)
-• RPO: 5 minutes for transaction data
-• RTO: 1 hour for full functionality restoration
-• RPO: 15 minutes for product catalog data
-```
-
-### Recommended Approach: Warm Standby with Automated Failover
-
-**Why Warm Standby is Recommended:**
-```
-Business Justification:
-• Balances cost with availability requirements
-• Meets 15-minute RTO for critical systems
-• Provides automated failover capabilities
-• Supports compliance requirements
-• Enables testing and validation
-• Scales cost-effectively with business growth
-
-Technical Benefits:
-• Faster recovery than Pilot Light
-• Lower cost than Active-Active
-• Automated failover reduces human error
-• Supports gradual traffic shifting
-• Enables blue-green deployments
-• Provides disaster recovery testing capability
-```
-
-### Step 1: Primary Region Setup (us-east-1)
-
-**VPC and Network Configuration:**
 ```bash
-# Create primary VPC
-aws ec2 create-vpc \
-    --cidr-block 10.0.0.0/16 \
-    --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=ecommerce-primary-vpc},{Key=Environment,Value=production}]' \
-    --region us-east-1
-
-# Create public subnets for ALB
-aws ec2 create-subnet \
-    --vpc-id vpc-12345678 \
-    --cidr-block 10.0.1.0/24 \
-    --availability-zone us-east-1a \
-    --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=primary-public-1a}]'
-
-aws ec2 create-subnet \
-    --vpc-id vpc-12345678 \
-    --cidr-block 10.0.2.0/24 \
-    --availability-zone us-east-1b \
-    --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=primary-public-1b}]'
-
-# Create private subnets for applications
-aws ec2 create-subnet \
-    --vpc-id vpc-12345678 \
-    --cidr-block 10.0.10.0/24 \
-    --availability-zone us-east-1a \
-    --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=primary-private-1a}]'
-
-aws ec2 create-subnet \
-    --vpc-id vpc-12345678 \
-    --cidr-block 10.0.11.0/24 \
-    --availability-zone us-east-1b \
-    --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=primary-private-1b}]'
-
-# Create database subnets
-aws ec2 create-subnet \
-    --vpc-id vpc-12345678 \
-    --cidr-block 10.0.20.0/24 \
-    --availability-zone us-east-1a \
-    --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=primary-db-1a}]'
-
-aws ec2 create-subnet \
-    --vpc-id vpc-12345678 \
-    --cidr-block 10.0.21.0/24 \
-    --availability-zone us-east-1b \
-    --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=primary-db-1b}]'
+# Example: Automated S3 backup
+aws s3 sync /data s3://dr-backup-bucket/$(date +%Y-%m-%d) \
+  --storage-class GLACIER_IR \
+  --exclude "*.tmp"
 ```
 
-**RDS Database with Cross-Region Replication:**
-```bash
-# Create DB subnet group
-aws rds create-db-subnet-group \
-    --db-subnet-group-name ecommerce-primary-subnet-group \
-    --db-subnet-group-description "Primary region DB subnet group" \
-    --subnet-ids subnet-12345678 subnet-87654321 \
-    --region us-east-1
+#### 2. Pilot Light
+- **RTO**: 10 minutes to hours
+- **RPO**: Minutes to hours
+- **Cost**: Low-Medium
+- **Use Case**: Critical data, minimal infrastructure
 
-# Create primary RDS instance with automated backups
+#### 3. Warm Standby
+- **RTO**: Minutes
+- **RPO**: Seconds to minutes
+- **Cost**: Medium-High
+- **Use Case**: Business-critical applications
+
+#### 4. Hot Standby (Multi-Site Active/Active)
+- **RTO**: Seconds
+- **RPO**: Near-zero
+- **Cost**: Highest
+- **Use Case**: Mission-critical applications
+
+---
+
+## AWS DR Strategies & Patterns
+
+### 1. Cross-Region Backup Strategy
+
+```yaml
+# CloudFormation Template: Cross-Region Backup
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Cross-region backup infrastructure'
+
+Parameters:
+  PrimaryRegion:
+    Type: String
+    Default: 'us-east-1'
+  DRRegion:
+    Type: String
+    Default: 'us-west-2'
+
+Resources:
+  # Primary Region S3 Bucket
+  PrimaryBackupBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${AWS::StackName}-primary-backup-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      ReplicationConfiguration:
+        Role: !GetAtt ReplicationRole.Arn
+        Rules:
+          - Id: ReplicateToSecondaryRegion
+            Status: Enabled
+            Prefix: ''
+            Destination:
+              Bucket: !Sub 'arn:aws:s3:::${AWS::StackName}-dr-backup-${AWS::AccountId}'
+              StorageClass: STANDARD_IA
+
+  # Cross-Region Replication Role
+  ReplicationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ReplicationPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObjectVersionForReplication
+                  - s3:GetObjectVersionAcl
+                Resource: !Sub '${PrimaryBackupBucket}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ReplicateObject
+                  - s3:ReplicateDelete
+                Resource: !Sub 'arn:aws:s3:::${AWS::StackName}-dr-backup-${AWS::AccountId}/*'
+```
+
+### 2. Database DR with RDS
+
+```bash
+# Create RDS with automated backups and cross-region read replica
 aws rds create-db-instance \
-    --db-instance-identifier ecommerce-primary-db \
-    --db-instance-class db.r6g.xlarge \
-    --engine postgres \
-    --engine-version 14.9 \
-    --master-username dbadmin \
-    --master-user-password SecurePassword123! \
-    --allocated-storage 100 \
-    --storage-type gp3 \
-    --storage-encrypted \
-    --kms-key-id alias/aws/rds \
-    --vpc-security-group-ids sg-12345678 \
-    --db-subnet-group-name ecommerce-primary-subnet-group \
-    --backup-retention-period 7 \
-    --backup-window "03:00-04:00" \
-    --maintenance-window "sun:04:00-sun:05:00" \
-    --multi-az \
-    --auto-minor-version-upgrade \
-    --deletion-protection \
-    --enable-performance-insights \
-    --performance-insights-retention-period 7 \
-    --region us-east-1
+  --db-instance-identifier myapp-primary \
+  --db-instance-class db.r5.large \
+  --engine mysql \
+  --master-username admin \
+  --master-user-password SecurePassword123! \
+  --allocated-storage 100 \
+  --backup-retention-period 7 \
+  --multi-az \
+  --storage-encrypted \
+  --region us-east-1
 
-# Create read replica in DR region
+# Create cross-region read replica
 aws rds create-db-instance-read-replica \
-    --db-instance-identifier ecommerce-dr-replica \
-    --source-db-instance-identifier arn:aws:rds:us-east-1:123456789012:db:ecommerce-primary-db \
-    --db-instance-class db.r6g.large \
-    --storage-encrypted \
-    --kms-key-id alias/aws/rds \
-    --vpc-security-group-ids sg-87654321 \
-    --db-subnet-group-name ecommerce-dr-subnet-group \
-    --auto-minor-version-upgrade \
-    --region us-west-2
+  --db-instance-identifier myapp-dr-replica \
+  --source-db-instance-identifier arn:aws:rds:us-east-1:123456789012:db:myapp-primary \
+  --db-instance-class db.r5.large \
+  --region us-west-2
 ```
 
-**ECS Cluster and Services:**
-```bash
-# Create ECS cluster
-aws ecs create-cluster \
-    --cluster-name ecommerce-primary \
-    --capacity-providers EC2 FARGATE \
-    --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
-    --region us-east-1
+### 3. Application Load Balancer Health Checks
 
-# Create task definition
-cat > ecommerce-task-definition.json << 'EOF'
+```json
 {
-    "family": "ecommerce-app",
-    "networkMode": "awsvpc",
-    "requiresCompatibilities": ["FARGATE"],
-    "cpu": "1024",
-    "memory": "2048",
-    "executionRoleArn": "arn:aws:iam::123456789012:role/ecsTaskExecutionRole",
-    "taskRoleArn": "arn:aws:iam::123456789012:role/ecsTaskRole",
-    "containerDefinitions": [
-        {
-            "name": "ecommerce-app",
-            "image": "123456789012.dkr.ecr.us-east-1.amazonaws.com/ecommerce-app:latest",
-            "portMappings": [
-                {
-                    "containerPort": 8080,
-                    "protocol": "tcp"
-                }
-            ],
-            "environment": [
-                {
-                    "name": "DB_HOST",
-                    "value": "ecommerce-primary-db.cluster-xyz.us-east-1.rds.amazonaws.com"
-                },
-                {
-                    "name": "REDIS_HOST",
-                    "value": "ecommerce-primary-cache.xyz.cache.amazonaws.com"
-                },
-                {
-                    "name": "REGION",
-                    "value": "us-east-1"
-                }
-            ],
-            "secrets": [
-                {
-                    "name": "DB_PASSWORD",
-                    "valueFrom": "arn:aws:secretsmanager:us-east-1:123456789012:secret:ecommerce/db/password-xyz"
-                }
-            ],
-            "logConfiguration": {
-                "logDriver": "awslogs",
-                "options": {
-                    "awslogs-group": "/ecs/ecommerce-app",
-                    "awslogs-region": "us-east-1",
-                    "awslogs-stream-prefix": "ecs"
-                }
-            },
-            "healthCheck": {
-                "command": ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
-                "interval": 30,
-                "timeout": 5,
-                "retries": 3,
-                "startPeriod": 60
-            }
-        }
-    ]
+  "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+  "Properties": {
+    "Name": "app-primary-tg",
+    "Port": 80,
+    "Protocol": "HTTP",
+    "VpcId": {"Ref": "VPC"},
+    "HealthCheckPath": "/health",
+    "HealthCheckIntervalSeconds": 30,
+    "HealthCheckTimeoutSeconds": 5,
+    "HealthyThresholdCount": 2,
+    "UnhealthyThresholdCount": 3,
+    "Matcher": {
+      "HttpCode": "200"
+    }
+  }
 }
-EOF
-
-aws ecs register-task-definition \
-    --cli-input-json file://ecommerce-task-definition.json \
-    --region us-east-1
-
-# Create ECS service
-aws ecs create-service \
-    --cluster ecommerce-primary \
-    --service-name ecommerce-app-service \
-    --task-definition ecommerce-app:1 \
-    --desired-count 3 \
-    --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[subnet-12345678,subnet-87654321],securityGroups=[sg-12345678],assignPublicIp=DISABLED}" \
-    --load-balancers targetGroupArn=arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/ecommerce-tg/1234567890123456,containerName=ecommerce-app,containerPort=8080 \
-    --health-check-grace-period-seconds 300 \
-    --region us-east-1
 ```
 
-### Step 2: DR Region Setup (us-west-2)
+---
 
-**DR VPC Configuration:**
-```bash
-# Create DR VPC (similar structure to primary)
-aws ec2 create-vpc \
-    --cidr-block 10.1.0.0/16 \
-    --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=ecommerce-dr-vpc},{Key=Environment,Value=dr}]' \
-    --region us-west-2
+## RTO/RPO Requirements & SLA Design
 
-# Create subnets (similar to primary but with 10.1.x.x CIDR)
-# ... (subnet creation commands similar to primary)
+### Business Impact Analysis
 
-# Create smaller ECS cluster for DR
-aws ecs create-cluster \
-    --cluster-name ecommerce-dr \
-    --capacity-providers FARGATE \
-    --default-capacity-provider-strategy capacityProvider=FARGATE,weight=1 \
-    --region us-west-2
-
-# Create DR service with minimal capacity
-aws ecs create-service \
-    --cluster ecommerce-dr \
-    --service-name ecommerce-app-service \
-    --task-definition ecommerce-app:1 \
-    --desired-count 1 \
-    --launch-type FARGATE \
-    --network-configuration "awsvpcConfiguration={subnets=[subnet-dr1,subnet-dr2],securityGroups=[sg-dr],assignPublicIp=DISABLED}" \
-    --load-balancers targetGroupArn=arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/ecommerce-dr-tg/1234567890123456,containerName=ecommerce-app,containerPort=8080 \
-    --region us-west-2
-```
-
-### Step 3: Data Replication and Backup Strategy
-
-**S3 Cross-Region Replication:**
-```bash
-# Create replication configuration
-cat > s3-replication-config.json << 'EOF'
-{
-    "Role": "arn:aws:iam::123456789012:role/replication-role",
-    "Rules": [
-        {
-            "ID": "ReplicateEverything",
-            "Status": "Enabled",
-            "Priority": 1,
-            "Filter": {},
-            "Destination": {
-                "Bucket": "arn:aws:s3:::ecommerce-assets-dr",
-                "StorageClass": "STANDARD_IA",
-                "ReplicationTime": {
-                    "Status": "Enabled",
-                    "Time": {
-                        "Minutes": 15
-                    }
-                },
-                "Metrics": {
-                    "Status": "Enabled",
-                    "EventThreshold": {
-                        "Minutes": 15
-                    }
-                }
-            }
+```python
+# Python script for RTO/RPO calculation
+class BusinessImpactAnalysis:
+    def __init__(self):
+        self.applications = {}
+    
+    def add_application(self, name, revenue_per_hour, data_criticality):
+        self.applications[name] = {
+            'revenue_per_hour': revenue_per_hour,
+            'data_criticality': data_criticality,
+            'recommended_rto': self.calculate_rto(revenue_per_hour),
+            'recommended_rpo': self.calculate_rpo(data_criticality)
         }
-    ]
-}
-EOF
+    
+    def calculate_rto(self, revenue_per_hour):
+        if revenue_per_hour > 100000:
+            return "< 15 minutes"
+        elif revenue_per_hour > 10000:
+            return "< 1 hour"
+        elif revenue_per_hour > 1000:
+            return "< 4 hours"
+        else:
+            return "< 24 hours"
+    
+    def calculate_rpo(self, criticality):
+        if criticality == "critical":
+            return "< 5 minutes"
+        elif criticality == "important":
+            return "< 1 hour"
+        else:
+            return "< 24 hours"
 
-aws s3api put-bucket-replication \
-    --bucket ecommerce-assets-primary \
-    --replication-configuration file://s3-replication-config.json
+# Usage example
+bia = BusinessImpactAnalysis()
+bia.add_application("e-commerce", 50000, "critical")
+bia.add_application("analytics", 5000, "important")
+print(bia.applications)
 ```
 
-**ElastiCache Backup and Restore:**
-```bash
-# Create Redis cluster with backup enabled
-aws elasticache create-replication-group \
-    --replication-group-id ecommerce-primary-cache \
-    --description "Primary region Redis cluster" \
-    --num-cache-clusters 2 \
-    --cache-node-type cache.r6g.large \
-    --engine redis \
-    --engine-version 7.0 \
-    --port 6379 \
-    --parameter-group-name default.redis7 \
-    --subnet-group-name ecommerce-cache-subnet-group \
-    --security-group-ids sg-12345678 \
-    --at-rest-encryption-enabled \
-    --transit-encryption-enabled \
-    --automatic-failover-enabled \
-    --multi-az-enabled \
-    --snapshot-retention-limit 5 \
-    --snapshot-window "03:00-05:00" \
-    --region us-east-1
+### SLA Tier Design
 
-# Create manual snapshot for DR
-aws elasticache create-snapshot \
-    --replication-group-id ecommerce-primary-cache \
-    --snapshot-name ecommerce-cache-dr-snapshot-$(date +%Y%m%d%H%M%S) \
-    --region us-east-1
-```
+| Tier | RTO | RPO | Availability | Use Case |
+|------|-----|-----|--------------|----------|
+| Platinum | < 5 min | < 1 min | 99.99% | Revenue-critical |
+| Gold | < 30 min | < 15 min | 99.9% | Business-critical |
+| Silver | < 4 hours | < 1 hour | 99.5% | Important |
+| Bronze | < 24 hours | < 24 hours | 99% | Non-critical |
 
-### Step 4: Automated Failover Implementation
+---
 
-**Route 53 Health Checks and Failover:**
+## Multi-Region Architecture
+
+### 1. Route 53 Health Checks & Failover
+
 ```bash
 # Create health check for primary region
 aws route53 create-health-check \
-    --caller-reference primary-health-check-$(date +%s) \
-    --health-check-config Type=HTTPS,ResourcePath=/health,FullyQualifiedDomainName=api.ecommerce.com,Port=443,RequestInterval=30,FailureThreshold=3 \
-    --region us-east-1
+  --caller-reference "primary-$(date +%s)" \
+  --health-check-config '{
+    "Type": "HTTPS",
+    "ResourcePath": "/health",
+    "FullyQualifiedDomainName": "api.myapp.com",
+    "Port": 443,
+    "RequestInterval": 30,
+    "FailureThreshold": 3
+  }'
 
 # Create DNS records with failover routing
-cat > route53-records.json << 'EOF'
-{
-    "Changes": [
-        {
-            "Action": "CREATE",
-            "ResourceRecordSet": {
-                "Name": "api.ecommerce.com",
-                "Type": "A",
-                "SetIdentifier": "primary",
-                "Failover": "PRIMARY",
-                "TTL": 60,
-                "ResourceRecords": [
-                    {
-                        "Value": "1.2.3.4"
-                    }
-                ],
-                "HealthCheckId": "12345678-1234-1234-1234-123456789012"
-            }
-        },
-        {
-            "Action": "CREATE",
-            "ResourceRecordSet": {
-                "Name": "api.ecommerce.com",
-                "Type": "A",
-                "SetIdentifier": "secondary",
-                "Failover": "SECONDARY",
-                "TTL": 60,
-                "ResourceRecords": [
-                    {
-                        "Value": "5.6.7.8"
-                    }
-                ]
-            }
-        }
-    ]
-}
-EOF
-
 aws route53 change-resource-record-sets \
-    --hosted-zone-id Z123456789 \
-    --change-batch file://route53-records.json
+  --hosted-zone-id Z123456789 \
+  --change-batch '{
+    "Changes": [{
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "api.myapp.com",
+        "Type": "A",
+        "SetIdentifier": "primary",
+        "Failover": "PRIMARY",
+        "TTL": 60,
+        "ResourceRecords": [{"Value": "1.2.3.4"}],
+        "HealthCheckId": "abc123-def456-ghi789"
+      }
+    }]
+  }'
 ```
 
-**Lambda-based Automated Failover:**
+### 2. Global Load Balancer Setup
+
+```yaml
+# Terraform configuration for Global Accelerator
+resource "aws_globalaccelerator_accelerator" "main" {
+  name            = "myapp-global-accelerator"
+  ip_address_type = "IPV4"
+  enabled         = true
+
+  attributes {
+    flow_logs_enabled   = true
+    flow_logs_s3_bucket = aws_s3_bucket.flow_logs.bucket
+    flow_logs_s3_prefix = "flow-logs/"
+  }
+}
+
+resource "aws_globalaccelerator_listener" "main" {
+  accelerator_arn = aws_globalaccelerator_accelerator.main.id
+  client_affinity = "SOURCE_IP"
+  protocol        = "TCP"
+
+  port_range {
+    from_port = 80
+    to_port   = 80
+  }
+
+  port_range {
+    from_port = 443
+    to_port   = 443
+  }
+}
+
+resource "aws_globalaccelerator_endpoint_group" "us_east_1" {
+  listener_arn = aws_globalaccelerator_listener.main.id
+  endpoint_group_region = "us-east-1"
+  traffic_dial_percentage = 100
+  health_check_grace_period_seconds = 30
+  health_check_interval_seconds = 30
+  health_check_path = "/health"
+  health_check_protocol = "HTTP"
+  health_check_port = 80
+  threshold_count = 3
+
+  endpoint_configuration {
+    endpoint_id = aws_lb.primary.arn
+    weight      = 100
+  }
+}
+```
+
+---
+
+## Database DR Strategies
+
+### 1. RDS Multi-AZ with Cross-Region Replica
+
+```bash
+# Enable automated backups and point-in-time recovery
+aws rds modify-db-instance \
+  --db-instance-identifier myapp-prod \
+  --backup-retention-period 35 \
+  --preferred-backup-window "03:00-04:00" \
+  --preferred-maintenance-window "sun:04:00-sun:05:00" \
+  --apply-immediately
+
+# Create manual snapshot before major changes
+aws rds create-db-snapshot \
+  --db-instance-identifier myapp-prod \
+  --db-snapshot-identifier myapp-prod-pre-migration-$(date +%Y%m%d)
+
+# Restore from point-in-time
+aws rds restore-db-instance-to-point-in-time \
+  --source-db-instance-identifier myapp-prod \
+  --target-db-instance-identifier myapp-restored \
+  --restore-time 2024-01-15T10:30:00.000Z
+```
+
+### 2. DynamoDB Global Tables
+
 ```python
-# lambda-failover-function.py
+import boto3
+
+def setup_dynamodb_global_tables():
+    dynamodb = boto3.client('dynamodb')
+    
+    # Create table in primary region
+    table_name = 'UserProfiles'
+    
+    # Enable streams for global tables
+    dynamodb.update_table(
+        TableName=table_name,
+        StreamSpecification={
+            'StreamEnabled': True,
+            'StreamViewType': 'NEW_AND_OLD_IMAGES'
+        }
+    )
+    
+    # Create global table
+    dynamodb.create_global_table(
+        GlobalTableName=table_name,
+        ReplicationGroup=[
+            {'RegionName': 'us-east-1'},
+            {'RegionName': 'us-west-2'},
+            {'RegionName': 'eu-west-1'}
+        ]
+    )
+    
+    return f"Global table {table_name} created successfully"
+
+# Enable point-in-time recovery
+def enable_pitr(table_name):
+    dynamodb = boto3.client('dynamodb')
+    
+    dynamodb.update_continuous_backups(
+        TableName=table_name,
+        PointInTimeRecoverySpecification={
+            'PointInTimeRecoveryEnabled': True
+        }
+    )
+```
+
+### 3. Aurora Global Database
+
+```sql
+-- Create Aurora Global Database
+CREATE GLOBAL DATABASE myapp_global_db
+    CLUSTER_IDENTIFIER myapp_primary_cluster
+    ENGINE aurora-mysql
+    ENGINE_VERSION 8.0.mysql_aurora.3.02.0;
+
+-- Add secondary region
+ALTER GLOBAL DATABASE myapp_global_db
+    ADD REGION 'us-west-2'
+    CLUSTER_IDENTIFIER myapp_secondary_cluster;
+
+-- Promote secondary to primary (failover)
+ALTER GLOBAL DATABASE myapp_global_db
+    PROMOTE REGION 'us-west-2';
+```
+
+---
+
+## Application-Level DR
+
+### 1. ECS/Fargate Multi-Region Deployment
+
+```yaml
+# docker-compose.yml for multi-region deployment
+version: '3.8'
+services:
+  web:
+    image: myapp:latest
+    ports:
+      - "80:8080"
+    environment:
+      - REGION=${AWS_REGION}
+      - DB_ENDPOINT=${DB_ENDPOINT}
+      - REDIS_ENDPOINT=${REDIS_ENDPOINT}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+```
+
+### 2. Lambda Function DR
+
+```python
+# Lambda function with cross-region deployment
 import json
 import boto3
-import logging
-from datetime import datetime
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+import os
+from botocore.exceptions import ClientError
 
 def lambda_handler(event, context):
-    """
-    Automated DR failover function triggered by CloudWatch alarms
-    """
+    # Get region from environment
+    region = os.environ.get('AWS_REGION')
     
-    # Initialize AWS clients
-    ecs_primary = boto3.client('ecs', region_name='us-east-1')
-    ecs_dr = boto3.client('ecs', region_name='us-west-2')
-    rds_dr = boto3.client('rds', region_name='us-west-2')
-    route53 = boto3.client('route53')
-    sns = boto3.client('sns')
+    # Initialize clients with retry configuration
+    config = boto3.session.Config(
+        retries={'max_attempts': 3, 'mode': 'adaptive'},
+        region_name=region
+    )
+    
+    dynamodb = boto3.resource('dynamodb', config=config)
     
     try:
-        # Step 1: Promote read replica to primary
-        logger.info("Promoting read replica to primary database")
-        rds_dr.promote_read_replica(
-            DBInstanceIdentifier='ecommerce-dr-replica'
-        )
-        
-        # Step 2: Scale up DR ECS service
-        logger.info("Scaling up DR ECS service")
-        ecs_dr.update_service(
-            cluster='ecommerce-dr',
-            service='ecommerce-app-service',
-            desiredCount=3  # Scale to production capacity
-        )
-        
-        # Step 3: Update Route 53 to point to DR region
-        logger.info("Updating DNS to point to DR region")
-        route53.change_resource_record_sets(
-            HostedZoneId='Z123456789',
-            ChangeBatch={
-                'Changes': [{
-                    'Action': 'UPSERT',
-                    'ResourceRecordSet': {
-                        'Name': 'api.ecommerce.com',
-                        'Type': 'A',
-                        'TTL': 60,
-                        'ResourceRecords': [{'Value': '5.6.7.8'}]  # DR ALB IP
-                    }
-                }]
-            }
-        )
-        
-        # Step 4: Restore Redis cache from snapshot
-        logger.info("Restoring Redis cache from latest snapshot")
-        # Get latest snapshot
-        snapshots = boto3.client('elasticache', region_name='us-east-1').describe_snapshots(
-            ReplicationGroupId='ecommerce-primary-cache',
-            MaxRecords=1
-        )
-        
-        if snapshots['Snapshots']:
-            latest_snapshot = snapshots['Snapshots'][0]['SnapshotName']
-            
-            # Create new Redis cluster from snapshot in DR region
-            boto3.client('elasticache', region_name='us-west-2').create_replication_group(
-                ReplicationGroupId='ecommerce-dr-cache',
-                Description='DR Redis cluster',
-                NumCacheClusters=2,
-                CacheNodeType='cache.r6g.large',
-                Engine='redis',
-                SnapshotName=latest_snapshot,
-                SubnetGroupName='ecommerce-dr-cache-subnet-group',
-                SecurityGroupIds=['sg-dr-cache']
-            )
-        
-        # Step 5: Send notification
-        sns.publish(
-            TopicArn='arn:aws:sns:us-east-1:123456789012:dr-notifications',
-            Subject='DR Failover Completed Successfully',
-            Message=f'''
-            DR failover completed at {datetime.now().isoformat()}
-            
-            Actions taken:
-            1. Read replica promoted to primary
-            2. ECS service scaled to production capacity
-            3. DNS updated to point to DR region
-            4. Redis cache restored from snapshot
-            
-            Please verify all systems are operational.
-            '''
-        )
+        # Primary operation
+        table = dynamodb.Table('UserData')
+        response = table.get_item(Key={'userId': event['userId']})
         
         return {
             'statusCode': 200,
             'body': json.dumps({
-                'message': 'DR failover completed successfully',
-                'timestamp': datetime.now().isoformat()
+                'data': response.get('Item', {}),
+                'region': region
             })
         }
         
-    except Exception as e:
-        logger.error(f"DR failover failed: {str(e)}")
-        
-        # Send failure notification
-        sns.publish(
-            TopicArn='arn:aws:sns:us-east-1:123456789012:dr-notifications',
-            Subject='DR Failover Failed',
-            Message=f'DR failover failed at {datetime.now().isoformat()}: {str(e)}'
-        )
+    except ClientError as e:
+        # Log error and return graceful failure
+        print(f"Error in region {region}: {str(e)}")
         
         return {
             'statusCode': 500,
             'body': json.dumps({
-                'error': 'DR failover failed',
-                'message': str(e)
+                'error': 'Service temporarily unavailable',
+                'region': region
             })
         }
+
+# SAM template for multi-region deployment
 ```
 
-### Step 5: Monitoring and Alerting
+```yaml
+# template.yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
 
-**CloudWatch Alarms for DR Triggering:**
-```bash
-# Create alarm for high error rate
-aws cloudwatch put-metric-alarm \
-    --alarm-name "ECommerce-HighErrorRate" \
-    --alarm-description "Trigger DR when error rate exceeds 5%" \
-    --metric-name "4XXError" \
-    --namespace "AWS/ApplicationELB" \
-    --statistic "Sum" \
-    --period 300 \
-    --threshold 50 \
-    --comparison-operator "GreaterThanThreshold" \
-    --evaluation-periods 2 \
-    --alarm-actions "arn:aws:lambda:us-east-1:123456789012:function:dr-failover" \
-    --dimensions Name=LoadBalancer,Value=app/ecommerce-alb/1234567890123456 \
-    --region us-east-1
+Parameters:
+  Environment:
+    Type: String
+    Default: prod
+  Region:
+    Type: String
+    Default: us-east-1
 
-# Create alarm for database connectivity
-aws cloudwatch put-metric-alarm \
-    --alarm-name "ECommerce-DatabaseDown" \
-    --alarm-description "Trigger DR when database is unreachable" \
-    --metric-name "DatabaseConnections" \
-    --namespace "AWS/RDS" \
-    --statistic "Average" \
-    --period 300 \
-    --threshold 1 \
-    --comparison-operator "LessThanThreshold" \
-    --evaluation-periods 3 \
-    --alarm-actions "arn:aws:lambda:us-east-1:123456789012:function:dr-failover" \
-    --dimensions Name=DBInstanceIdentifier,Value=ecommerce-primary-db \
-    --region us-east-1
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.9
+    Environment:
+      Variables:
+        ENVIRONMENT: !Ref Environment
+        REGION: !Ref Region
+
+Resources:
+  UserDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /users/{userId}
+            Method: get
+      DeadLetterQueue:
+        Type: SQS
+        TargetArn: !GetAtt ErrorQueue.Arn
+      ReservedConcurrencyLimit: 100
+
+  ErrorQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600  # 14 days
+      VisibilityTimeoutSeconds: 60
 ```
 
-**DR Testing Automation:**
-```bash
-# Create EventBridge rule for monthly DR testing
-aws events put-rule \
-    --name "monthly-dr-test" \
-    --schedule-expression "cron(0 2 1 * ? *)" \
-    --description "Monthly DR test execution" \
-    --state ENABLED
+---
 
-aws events put-targets \
-    --rule "monthly-dr-test" \
-    --targets "Id"="1","Arn"="arn:aws:lambda:us-east-1:123456789012:function:dr-test-function"
+## Infrastructure as Code for DR
+
+### 1. Terraform Multi-Region Module
+
+```hcl
+# modules/multi-region-app/main.tf
+variable "regions" {
+  description = "List of regions to deploy to"
+  type        = list(string)
+  default     = ["us-east-1", "us-west-2"]
+}
+
+variable "primary_region" {
+  description = "Primary region"
+  type        = string
+  default     = "us-east-1"
+}
+
+# Deploy to multiple regions
+module "app_deployment" {
+  for_each = toset(var.regions)
+  source   = "./region-deployment"
+  
+  region         = each.value
+  is_primary     = each.value == var.primary_region
+  app_name       = var.app_name
+  environment    = var.environment
+  
+  providers = {
+    aws = aws.region[each.value]
+  }
+}
+
+# Configure providers for each region
+provider "aws" {
+  for_each = toset(var.regions)
+  alias    = "region.${each.value}"
+  region   = each.value
+}
+
+# Route 53 health checks and failover
+resource "aws_route53_health_check" "primary" {
+  fqdn                            = module.app_deployment[var.primary_region].load_balancer_dns
+  port                            = 443
+  type                            = "HTTPS"
+  resource_path                   = "/health"
+  failure_threshold               = "3"
+  request_interval                = "30"
+  cloudwatch_alarm_region         = var.primary_region
+  cloudwatch_alarm_name           = "healthcheck-failed"
+  insufficient_data_health_status = "Failure"
+
+  tags = {
+    Name = "${var.app_name}-primary-health-check"
+  }
+}
+
+resource "aws_route53_record" "primary" {
+  zone_id = var.hosted_zone_id
+  name    = var.domain_name
+  type    = "A"
+  
+  set_identifier = "primary"
+  failover_routing_policy {
+    type = "PRIMARY"
+  }
+  
+  health_check_id = aws_route53_health_check.primary.id
+  ttl             = 60
+  
+  records = [module.app_deployment[var.primary_region].load_balancer_ip]
+}
 ```
 
-## 🔄 Alternative DR Approaches
+### 2. CloudFormation StackSets for Multi-Account DR
 
-### Approach 1: Backup and Restore (Cost-Optimized)
+```yaml
+# stackset-template.yaml
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Multi-account DR infrastructure'
 
-**When to Use:**
-```
-Perfect for:
-• Non-critical applications
-• Development/testing environments
-• Applications with >24 hour RTO tolerance
-• Cost-sensitive implementations
-• Batch processing systems
-• Reporting and analytics platforms
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, staging, prod]
+  PrimaryAccount:
+    Type: String
+    Description: 'Primary AWS Account ID'
+  DRAccount:
+    Type: String
+    Description: 'DR AWS Account ID'
 
-Business Scenarios:
-• Internal tools and dashboards
-• Data warehousing systems
-• Development environments
-• Legacy applications with low usage
-```
+Conditions:
+  IsPrimaryAccount: !Equals [!Ref 'AWS::AccountId', !Ref PrimaryAccount]
+  IsDRAccount: !Equals [!Ref 'AWS::AccountId', !Ref DRAccount]
 
-**Implementation:**
-```bash
-# Automated backup strategy
-aws backup create-backup-plan \
-    --backup-plan '{
-        "BackupPlanName": "ecommerce-backup-plan",
-        "Rules": [
-            {
-                "RuleName": "daily-backups",
-                "TargetBackupVault": "default",
-                "ScheduleExpression": "cron(0 2 ? * * *)",
-                "StartWindowMinutes": 60,
-                "CompletionWindowMinutes": 120,
-                "Lifecycle": {
-                    "DeleteAfterDays": 30,
-                    "MoveToColdStorageAfterDays": 7
-                },
-                "RecoveryPointTags": {
-                    "Environment": "production",
-                    "Application": "ecommerce"
-                }
-            }
-        ]
-    }'
+Resources:
+  # VPC Configuration
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !If 
+        - IsPrimaryAccount
+        - '10.0.0.0/16'
+        - '10.1.0.0/16'
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${Environment}-${AWS::Region}-vpc'
 
-# Create backup selection
-aws backup create-backup-selection \
-    --backup-plan-id "backup-plan-id" \
-    --backup-selection '{
-        "SelectionName": "ecommerce-resources",
-        "IamRoleArn": "arn:aws:iam::123456789012:role/aws-backup-service-role",
-        "Resources": [
-            "arn:aws:rds:us-east-1:123456789012:db:ecommerce-primary-db",
-            "arn:aws:ec2:us-east-1:123456789012:volume/*"
-        ],
-        "Conditions": {
-            "StringEquals": {
-                "aws:ResourceTag/Environment": ["production"]
-            }
-        }
-    }'
-```
+  # Cross-account role for DR operations
+  DRRole:
+    Type: AWS::IAM::Role
+    Condition: IsDRAccount
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${PrimaryAccount}:root'
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                'sts:ExternalId': 'dr-operations'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
 
-### Approach 2: Pilot Light (Balanced Approach)
-
-**When to Use:**
-```
-Perfect for:
-• Important business applications
-• Moderate availability requirements (1-4 hour RTO)
-• Cost-conscious implementations
-• Applications with predictable recovery procedures
-• Systems with clear critical path components
-
-Business Scenarios:
-• Customer relationship management (CRM)
-• Enterprise resource planning (ERP)
-• Content management systems
-• Internal business applications
+  # SNS Topic for DR notifications
+  DRNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${Environment}-dr-notifications'
+      DisplayName: 'DR Operations Notifications'
 ```
 
-**Implementation:**
-```bash
-# Minimal DR infrastructure - just core components
-aws ec2 run-instances \
-    --image-id ami-12345678 \
-    --count 1 \
-    --instance-type t3.micro \
-    --key-name dr-key-pair \
-    --security-group-ids sg-dr \
-    --subnet-id subnet-dr \
-    --user-data file://pilot-light-userdata.sh \
-    --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=pilot-light-core},{Key=Environment,Value=dr}]' \
-    --region us-west-2
+---
 
-# Keep minimal services running
-cat > pilot-light-userdata.sh << 'EOF'
-#!/bin/bash
-yum update -y
-yum install -y docker
-systemctl start docker
-systemctl enable docker
+## Monitoring & Alerting
 
-# Pull essential container images
-docker pull nginx:latest
-docker pull redis:latest
+### 1. CloudWatch Alarms for DR
 
-# Keep containers stopped but ready
-docker create --name nginx-ready -p 80:80 nginx:latest
-docker create --name redis-ready -p 6379:6379 redis:latest
-EOF
-```
-
-### Approach 3: Multi-Site Active-Active (Maximum Availability)
-
-**When to Use:**
-```
-Perfect for:
-• Mission-critical applications
-• Zero tolerance for downtime
-• Global user base requiring low latency
-• High-value transactions
-• Real-time systems
-
-Business Scenarios:
-• Stock trading platforms
-• Emergency services systems
-• Global e-commerce during peak seasons
-• Financial payment processing
-• Real-time gaming platforms
-```
-
-**Implementation:**
-```bash
-# Global load balancer with health checks
-aws globalaccelerator create-accelerator \
-    --name ecommerce-global-accelerator \
-    --ip-address-type IPV4 \
-    --enabled \
-    --attributes FlowLogsEnabled=true,FlowLogsS3Bucket=ecommerce-flow-logs,FlowLogsS3Prefix=global-accelerator/
-
-# Create listeners for both regions
-aws globalaccelerator create-listener \
-    --accelerator-arn arn:aws:globalaccelerator::123456789012:accelerator/12345678-1234-1234-1234-123456789012 \
-    --protocol TCP \
-    --port-ranges FromPort=80,ToPort=80 FromPort=443,ToPort=443
-
-# Add endpoint groups for both regions
-aws globalaccelerator create-endpoint-group \
-    --listener-arn arn:aws:globalaccelerator::123456789012:listener/12345678-1234-1234-1234-123456789012/12345678 \
-    --endpoint-group-region us-east-1 \
-    --endpoint-configurations EndpointId=arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/ecommerce-alb/1234567890123456,Weight=100 \
-    --health-check-interval-seconds 30 \
-    --threshold-count 3
-
-aws globalaccelerator create-endpoint-group \
-    --listener-arn arn:aws:globalaccelerator::123456789012:listener/12345678-1234-1234-1234-123456789012/12345678 \
-    --endpoint-group-region us-west-2 \
-    --endpoint-configurations EndpointId=arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/app/ecommerce-dr-alb/1234567890123456,Weight=100 \
-    --health-check-interval-seconds 30 \
-    --threshold-count 3
-```
-
-## 📊 DR Testing and Validation
-
-### Automated DR Testing Framework
-
-**Monthly DR Test Automation:**
 ```python
-# dr-test-automation.py
 import boto3
 import json
-import time
-from datetime import datetime
 
-class DRTestFramework:
-    def __init__(self):
-        self.primary_region = 'us-east-1'
-        self.dr_region = 'us-west-2'
-        self.test_results = []
+def create_dr_monitoring():
+    cloudwatch = boto3.client('cloudwatch')
+    sns = boto3.client('sns')
     
-    def run_comprehensive_dr_test(self):
-        """
-        Comprehensive DR test including all components
-        """
-        print(f"Starting DR test at {datetime.now()}")
-        
-        # Test 1: Database failover
-        db_test = self.test_database_failover()
-        self.test_results.append(db_test)
-        
-        # Test 2: Application failover
-        app_test = self.test_application_failover()
-        self.test_results.append(app_test)
-        
-        # Test 3: DNS failover
-        dns_test = self.test_dns_failover()
-        self.test_results.append(dns_test)
-        
-        # Test 4: Data consistency
-        data_test = self.test_data_consistency()
-        self.test_results.append(data_test)
-        
-        # Generate report
-        self.generate_test_report()
-        
-        return self.test_results
+    # Create SNS topic for DR alerts
+    topic_response = sns.create_topic(Name='dr-critical-alerts')
+    topic_arn = topic_response['TopicArn']
     
-    def test_database_failover(self):
-        """Test RDS read replica promotion"""
-        try:
-            rds = boto3.client('rds', region_name=self.dr_region)
-            
-            # Create test read replica
-            test_replica_id = f"dr-test-replica-{int(time.time())}"
-            
-            rds.create_db_instance_read_replica(
-                DBInstanceIdentifier=test_replica_id,
-                SourceDBInstanceIdentifier='arn:aws:rds:us-east-1:123456789012:db:ecommerce-primary-db',
-                DBInstanceClass='db.t3.micro'
-            )
-            
-            # Wait for replica to be available
-            waiter = rds.get_waiter('db_instance_available')
-            waiter.wait(DBInstanceIdentifier=test_replica_id, WaiterConfig={'Delay': 30, 'MaxAttempts': 20})
-            
-            # Test promotion
-            rds.promote_read_replica(DBInstanceIdentifier=test_replica_id)
-            
-            # Cleanup
-            rds.delete_db_instance(
-                DBInstanceIdentifier=test_replica_id,
-                SkipFinalSnapshot=True
-            )
-            
-            return {
-                'test': 'database_failover',
-                'status': 'PASSED',
-                'duration': time.time(),
-                'message': 'Database failover test completed successfully'
+    # Database connection alarm
+    cloudwatch.put_metric_alarm(
+        AlarmName='RDS-Connection-Failures',
+        ComparisonOperator='GreaterThanThreshold',
+        EvaluationPeriods=2,
+        MetricName='DatabaseConnections',
+        Namespace='AWS/RDS',
+        Period=300,
+        Statistic='Average',
+        Threshold=0.0,
+        ActionsEnabled=True,
+        AlarmActions=[topic_arn],
+        AlarmDescription='RDS connection failures detected',
+        Dimensions=[
+            {
+                'Name': 'DBInstanceIdentifier',
+                'Value': 'myapp-primary'
             }
-            
-        except Exception as e:
-            return {
-                'test': 'database_failover',
-                'status': 'FAILED',
-                'error': str(e)
-            }
+        ]
+    )
     
-    def test_application_failover(self):
-        """Test ECS service scaling and health"""
-        try:
-            ecs = boto3.client('ecs', region_name=self.dr_region)
-            
-            # Scale up DR service temporarily
-            ecs.update_service(
-                cluster='ecommerce-dr',
-                service='ecommerce-app-service',
-                desiredCount=2
-            )
-            
-            # Wait for service to stabilize
-            waiter = ecs.get_waiter('services_stable')
-            waiter.wait(
-                cluster='ecommerce-dr',
-                services=['ecommerce-app-service'],
-                WaiterConfig={'Delay': 15, 'MaxAttempts': 20}
-            )
-            
-            # Test health endpoint
-            import requests
-            health_response = requests.get('http://dr-alb-endpoint/health', timeout=10)
-            
-            if health_response.status_code == 200:
-                # Scale back down
-                ecs.update_service(
-                    cluster='ecommerce-dr',
-                    service='ecommerce-app-service',
-                    desiredCount=1
-                )
-                
-                return {
-                    'test': 'application_failover',
-                    'status': 'PASSED',
-                    'message': 'Application failover test completed successfully'
-                }
-            else:
-                raise Exception(f"Health check failed: {health_response.status_code}")
-                
-        except Exception as e:
-            return {
-                'test': 'application_failover',
-                'status': 'FAILED',
-                'error': str(e)
+    # Application health check alarm
+    cloudwatch.put_metric_alarm(
+        AlarmName='Application-Health-Check-Failed',
+        ComparisonOperator='LessThanThreshold',
+        EvaluationPeriods=3,
+        MetricName='HealthyHostCount',
+        Namespace='AWS/ApplicationELB',
+        Period=60,
+        Statistic='Average',
+        Threshold=1.0,
+        ActionsEnabled=True,
+        AlarmActions=[topic_arn],
+        AlarmDescription='Application health check failures',
+        Dimensions=[
+            {
+                'Name': 'TargetGroup',
+                'Value': 'app-primary-tg'
             }
+        ]
+    )
     
-    def generate_test_report(self):
-        """Generate comprehensive test report"""
-        report = {
-            'test_date': datetime.now().isoformat(),
-            'total_tests': len(self.test_results),
-            'passed_tests': len([t for t in self.test_results if t['status'] == 'PASSED']),
-            'failed_tests': len([t for t in self.test_results if t['status'] == 'FAILED']),
-            'results': self.test_results
-        }
-        
-        # Send to S3 for record keeping
-        s3 = boto3.client('s3')
-        s3.put_object(
-            Bucket='ecommerce-dr-test-reports',
-            Key=f"dr-test-{datetime.now().strftime('%Y-%m-%d')}.json",
-            Body=json.dumps(report, indent=2)
-        )
-        
-        # Send notification
-        sns = boto3.client('sns')
-        sns.publish(
-            TopicArn='arn:aws:sns:us-east-1:123456789012:dr-notifications',
-            Subject=f'DR Test Report - {report["passed_tests"]}/{report["total_tests"]} Passed',
-            Message=json.dumps(report, indent=2)
-        )
+    # Cross-region replication lag alarm
+    cloudwatch.put_metric_alarm(
+        AlarmName='RDS-Replica-Lag',
+        ComparisonOperator='GreaterThanThreshold',
+        EvaluationPeriods=2,
+        MetricName='ReplicaLag',
+        Namespace='AWS/RDS',
+        Period=300,
+        Statistic='Average',
+        Threshold=300.0,  # 5 minutes
+        ActionsEnabled=True,
+        AlarmActions=[topic_arn],
+        AlarmDescription='RDS replica lag exceeds threshold'
+    )
 
-# Lambda handler for scheduled testing
-def lambda_handler(event, context):
-    dr_test = DRTestFramework()
-    results = dr_test.run_comprehensive_dr_test()
+# Custom metric for application-level monitoring
+def publish_custom_metrics():
+    cloudwatch = boto3.client('cloudwatch')
     
-    return {
-        'statusCode': 200,
-        'body': json.dumps(results)
-    }
-```
-
-## 💰 Cost Optimization and ROI Analysis
-
-### DR Cost Comparison
-
-**Cost Analysis by DR Pattern:**
-```
-Backup and Restore:
-• Monthly cost: $500-2,000
-• Components: S3 storage, backup services
-• RTO: 24+ hours
-• Use case: Non-critical systems
-
-Pilot Light:
-• Monthly cost: $2,000-8,000
-• Components: Minimal compute, data replication
-• RTO: 1-4 hours
-• Use case: Important business systems
-
-Warm Standby:
-• Monthly cost: $8,000-25,000
-• Components: Scaled-down infrastructure
-• RTO: 5-30 minutes
-• Use case: High-priority systems
-
-Active-Active:
-• Monthly cost: $25,000-100,000+
-• Components: Full duplicate infrastructure
-• RTO: 0-5 minutes
-• Use case: Mission-critical systems
-```
-
-**ROI Calculation Example:**
-```
-E-commerce Platform Analysis:
-• Revenue: $100M annually
-• Downtime cost: $500K per hour
-• Current availability: 99.5% (43.8 hours downtime/year)
-• Annual downtime cost: $21.9M
-
-With Warm Standby DR:
-• Availability improvement: 99.95% (4.4 hours downtime/year)
-• Annual downtime cost: $2.2M
-• DR implementation cost: $300K annually
-• Net savings: $19.4M annually
-• ROI: 6,467%
-```
-
-## 🔧 AWS Disaster Recovery Service (DRS) - Managed Approach
-
-### Understanding AWS DRS
-
-**What is AWS DRS:**
-• Managed disaster recovery service (formerly CloudEndure)
-• Continuous block-level replication
-• Automated failover and failback
-• Support for physical, virtual, and cloud servers
-• Point-in-time recovery capabilities
-• Cross-platform support (Windows, Linux)
-
-**DRS vs Traditional DR:**
-
-**Traditional DR Challenges:**
-• Manual replication setup and management
-• Complex failover procedures
-• Inconsistent recovery testing
-• High operational overhead
-• Risk of human error during disasters
-
-**AWS DRS Benefits:**
-• Automated continuous replication
-• One-click failover and failback
-• Built-in recovery testing
-• Managed service with AWS support
-• Consistent recovery procedures
-
-### DRS Implementation
-
-**Step 1: DRS Setup and Configuration:**
-```bash
-# Install DRS agent on source servers
-wget -O ./aws-replication-installer-init.py https://aws-elastic-disaster-recovery-us-east-1.s3.amazonaws.com/latest/linux/aws-replication-installer-init.py
-
-# Run installer with credentials
-sudo python3 aws-replication-installer-init.py \
-    --region us-east-1 \
-    --aws-access-key-id AKIAIOSFODNN7EXAMPLE \
-    --aws-secret-access-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
-    --no-prompt
-
-# Verify replication status
-aws drs describe-source-servers --region us-east-1
-```
-
-**Step 2: Configure Replication Settings:**
-```bash
-# Create replication configuration template
-aws drs create-replication-configuration-template \
-    --associate-default-security-group \
-    --bandwidth-throttling 0 \
-    --create-public-ip false \
-    --data-plane-routing PRIVATE_IP \
-    --default-large-staging-disk-type GP3 \
-    --ebs-encryption ENCRYPTED \
-    --ebs-encryption-key-arn arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-123456789012 \
-    --replication-server-instance-type m5.large \
-    --replication-servers-security-groups-i-ds sg-12345678 \
-    --staging-area-subnet-id subnet-12345678 \
-    --staging-area-tags Environment=DR,Application=ecommerce \
-    --use-dedicated-replication-server false
-```
-
-## 🏢 Hybrid and On-Premises DR Scenarios
-
-### On-Premises to AWS DR
-
-**Business Scenarios:**
-• Legacy data center modernization
-• Regulatory requirements for on-premises primary
-• Cost optimization (cloud as DR only)
-• Gradual cloud migration strategy
-• Compliance with data residency laws
-
-**Architecture Pattern:**
-```
-On-Premises Primary → AWS DR
-
-Components:
-• Primary: On-premises data center
-• DR: AWS region with VPN/Direct Connect
-• Replication: AWS DataSync, Storage Gateway, DMS
-• Failover: Route 53, VPN failover
-• Failback: Reverse replication capability
-```
-
-**Implementation with AWS Storage Gateway:**
-```bash
-# Deploy Storage Gateway VM on-premises
-# Download OVA from AWS console and deploy to VMware/Hyper-V
-
-# Activate Storage Gateway
-aws storagegateway activate-gateway \
-    --activation-key ACTIVATION_KEY_FROM_VM \
-    --gateway-name OnPremStorageGateway \
-    --gateway-timezone GMT-5:EST \
-    --gateway-region us-east-1 \
-    --gateway-type FILE_S3
-
-# Create NFS file share
-aws storagegateway create-nfs-file-share \
-    --client-token $(uuidgen) \
-    --gateway-arn arn:aws:storagegateway:us-east-1:123456789012:gateway/sgw-12345678 \
-    --location-arn arn:aws:s3:::onprem-backup-bucket \
-    --role arn:aws:iam::123456789012:role/StorageGatewayRole \
-    --default-storage-class S3_STANDARD_IA \
-    --nfs-file-share-defaults '{"fileMode": "0666", "directoryMode": "0777", "groupId": 0, "ownerId": 0}'
-```
-
-## 🔒 Security and Compliance During DR
-
-### Security Considerations
-
-**Data Protection During DR:**
-• Data at rest: EBS encryption, S3 encryption
-• Data in transit: TLS/SSL for all communications
-• Key management: AWS KMS with cross-region keys
-• Backup encryption: Encrypted snapshots and backups
-• Emergency access procedures
-• Break-glass access for DR scenarios
-• Audit logging during DR events
-• Temporary elevated permissions
-
-**SOX Compliance DR:**
-```bash
-# Create compliance-specific backup policy
-aws backup create-backup-plan \
-    --backup-plan '{
-        "BackupPlanName": "SOX-Compliance-DR",
-        "Rules": [{
-            "RuleName": "SOX-Daily-Backup",
-            "TargetBackupVault": "sox-compliance-vault",
-            "ScheduleExpression": "cron(0 2 ? * * *)",
-            "StartWindowMinutes": 60,
-            "CompletionWindowMinutes": 120,
-            "Lifecycle": {
-                "DeleteAfterDays": 2555,
-                "MoveToColdStorageAfterDays": 30
-            },
-            "RecoveryPointTags": {
-                "Compliance": "SOX",
-                "RetentionPeriod": "7Years",
-                "DataClassification": "Financial"
+    # Business metric: Orders per minute
+    cloudwatch.put_metric_data(
+        Namespace='MyApp/Business',
+        MetricData=[
+            {
+                'MetricName': 'OrdersPerMinute',
+                'Value': get_orders_count(),
+                'Unit': 'Count',
+                'Dimensions': [
+                    {
+                        'Name': 'Environment',
+                        'Value': 'production'
+                    },
+                    {
+                        'Name': 'Region',
+                        'Value': boto3.Session().region_name
+                    }
+                ]
             }
-        }]
-    }'
+        ]
+    )
 ```
 
-## 📋 DR Runbooks and Communication Plans
+### 2. AWS Config Rules for DR Compliance
 
-### Executive Summary Runbook
+```json
+{
+  "ConfigRuleName": "rds-multi-az-enabled",
+  "Description": "Checks if RDS instances are configured for Multi-AZ",
+  "Source": {
+    "Owner": "AWS",
+    "SourceIdentifier": "RDS_MULTI_AZ_SUPPORT"
+  },
+  "Scope": {
+    "ComplianceResourceTypes": [
+      "AWS::RDS::DBInstance"
+    ]
+  }
+}
+```
 
-**Immediate Actions (0-15 minutes):**
-1. **Incident Commander Assignment**
-   - Primary: John Smith (CEO) - +1-555-0101
-   - Backup: Jane Doe (CTO) - +1-555-0102
+---
 
-2. **Stakeholder Notification**
-   - Board of Directors: board@company.com
-   - Legal Team: legal@company.com
-   - PR Team: pr@company.com
-   - Insurance: insurance-contact@company.com
+## Testing & Validation
 
-3. **Customer Communication**
-   - Status Page Update: status.company.com
-   - Social Media: @company_support
-   - Email Notification: customer-alerts@company.com
-
-**Decision Matrix:**
-| Scenario | RTO Target | Action Required |
-|----------|------------|----------------|
-| Regional AWS Outage | 15 minutes | Automatic failover to DR region |
-| Database Corruption | 1 hour | Restore from point-in-time backup |
-| Security Breach | 4 hours | Isolate systems, forensic analysis |
-| Natural Disaster | 24 hours | Activate full DR site |
-
-**Success Criteria:**
-- [ ] All critical systems operational
-- [ ] Customer-facing services restored
-- [ ] Data integrity verified
-- [ ] Security posture maintained
-- [ ] Stakeholders notified
-
-### Technical Runbook
+### 1. Automated DR Testing Script
 
 ```bash
 #!/bin/bash
-# DR Activation Script - Technical Runbook
+# dr-test.sh - Automated DR testing script
 
 set -e
 
-echo "=== DISASTER RECOVERY ACTIVATION ==="
-echo "Timestamp: $(date)"
-echo "Operator: $USER"
-echo "======================================"
+# Configuration
+PRIMARY_REGION="us-east-1"
+DR_REGION="us-west-2"
+APP_NAME="myapp"
+TEST_DURATION=300  # 5 minutes
 
-# Step 1: Verify DR readiness
-echo "Step 1: Verifying DR environment readiness..."
-aws sts get-caller-identity --region us-west-2
-aws rds describe-db-instances --db-instance-identifier ecommerce-dr-replica --region us-west-2
-aws ecs describe-services --cluster ecommerce-dr --services ecommerce-app-service --region us-west-2
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-# Step 2: Promote database replica
-echo "Step 2: Promoting database replica to primary..."
-aws rds promote-read-replica \
-    --db-instance-identifier ecommerce-dr-replica \
-    --region us-west-2
+log() {
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"
+}
 
-# Wait for promotion to complete
-echo "Waiting for database promotion to complete..."
-aws rds wait db-instance-available \
-    --db-instance-identifier ecommerce-dr-replica \
-    --region us-west-2
+error() {
+    echo -e "${RED}[ERROR] $1${NC}"
+    exit 1
+}
 
-# Step 3: Scale up application services
-echo "Step 3: Scaling up application services..."
-aws ecs update-service \
-    --cluster ecommerce-dr \
-    --service ecommerce-app-service \
-    --desired-count 5 \
-    --region us-west-2
+warn() {
+    echo -e "${YELLOW}[WARNING] $1${NC}"
+}
 
-# Step 4: Update DNS to point to DR region
-echo "Step 4: Updating DNS to DR region..."
-aws route53 change-resource-record-sets \
-    --hosted-zone-id Z123456789 \
-    --change-batch file://dns-failover.json
-
-# Step 5: Verify application health
-echo "Step 5: Verifying application health..."
-for i in {1..10}; do
-    if curl -f -s https://api.company.com/health > /dev/null; then
-        echo "Health check passed"
-        break
+# Test 1: Health Check Validation
+test_health_checks() {
+    log "Testing health checks..."
+    
+    # Primary region health check
+    PRIMARY_HEALTH=$(aws route53 get-health-check \
+        --health-check-id $(aws route53 list-health-checks \
+        --query "HealthChecks[?contains(FullyQualifiedDomainName, '${APP_NAME}')].Id" \
+        --output text) \
+        --query 'HealthCheck.HealthCheckConfig.FullyQualifiedDomainName' \
+        --output text)
+    
+    if curl -f "https://${PRIMARY_HEALTH}/health" > /dev/null 2>&1; then
+        log "✓ Primary region health check passed"
     else
-        echo "Health check failed, attempt $i/10"
-        sleep 30
+        error "✗ Primary region health check failed"
     fi
-done
+}
 
-# Step 6: Send notifications
-echo "Step 6: Sending notifications..."
-aws sns publish \
-    --topic-arn arn:aws:sns:us-east-1:123456789012:dr-notifications \
-    --subject "DR Activation Completed" \
-    --message "DR activation completed successfully at $(date). All systems operational in DR region."
+# Test 2: Database Failover
+test_database_failover() {
+    log "Testing database failover..."
+    
+    # Get RDS instance identifier
+    DB_INSTANCE=$(aws rds describe-db-instances \
+        --region $PRIMARY_REGION \
+        --query "DBInstances[?contains(DBInstanceIdentifier, '${APP_NAME}')].DBInstanceIdentifier" \
+        --output text)
+    
+    if [ -z "$DB_INSTANCE" ]; then
+        error "No RDS instance found for $APP_NAME"
+    fi
+    
+    # Initiate failover
+    log "Initiating RDS failover for $DB_INSTANCE..."
+    aws rds reboot-db-instance \
+        --db-instance-identifier $DB_INSTANCE \
+        --force-failover \
+        --region $PRIMARY_REGION
+    
+    # Wait for failover to complete
+    log "Waiting for failover to complete..."
+    aws rds wait db-instance-available \
+        --db-instance-identifier $DB_INSTANCE \
+        --region $PRIMARY_REGION
+    
+    log "✓ Database failover completed"
+}
 
-echo "=== DR ACTIVATION COMPLETED ==="
-echo "Timestamp: $(date)"
-echo "Status: SUCCESS"
-echo "Next Steps: Monitor systems and prepare for failback when primary region is restored"
+# Test 3: Application Failover
+test_application_failover() {
+    log "Testing application failover..."
+    
+    # Get current primary endpoint
+    CURRENT_PRIMARY=$(dig +short ${APP_NAME}.example.com)
+    log "Current primary endpoint: $CURRENT_PRIMARY"
+    
+    # Simulate primary region failure by updating Route 53 health check
+    HEALTH_CHECK_ID=$(aws route53 list-health-checks \
+        --query "HealthChecks[?contains(FullyQualifiedDomainName, '${APP_NAME}')].Id" \
+        --output text)
+    
+    # Temporarily disable health check to trigger failover
+    aws route53 update-health-check \
+        --health-check-id $HEALTH_CHECK_ID \
+        --disabled
+    
+    log "Waiting for DNS failover..."
+    sleep 120  # Wait for DNS propagation
+    
+    # Check if traffic is now going to DR region
+    NEW_ENDPOINT=$(dig +short ${APP_NAME}.example.com)
+    if [ "$NEW_ENDPOINT" != "$CURRENT_PRIMARY" ]; then
+        log "✓ DNS failover successful. New endpoint: $NEW_ENDPOINT"
+    else
+        warn "DNS failover may not have completed yet"
+    fi
+    
+    # Re-enable health check
+    aws route53 update-health-check \
+        --health-check-id $HEALTH_CHECK_ID \
+        --no-disabled
+}
+
+# Test 4: Data Consistency Check
+test_data_consistency() {
+    log "Testing data consistency between regions..."
+    
+    # Compare S3 bucket contents
+    PRIMARY_OBJECTS=$(aws s3api list-objects-v2 \
+        --bucket ${APP_NAME}-primary-backup \
+        --region $PRIMARY_REGION \
+        --query 'Contents | length(@)')
+    
+    DR_OBJECTS=$(aws s3api list-objects-v2 \
+        --bucket ${APP_NAME}-dr-backup \
+        --region $DR_REGION \
+        --query 'Contents | length(@)')
+    
+    if [ "$PRIMARY_OBJECTS" -eq "$DR_OBJECTS" ]; then
+        log "✓ S3 data consistency check passed"
+    else
+        warn "S3 data consistency check failed. Primary: $PRIMARY_OBJECTS, DR: $DR_OBJECTS"
+    fi
+}
+
+# Test 5: Recovery Time Measurement
+measure_recovery_time() {
+    log "Measuring recovery time..."
+    
+    START_TIME=$(date +%s)
+    
+    # Simulate service restoration
+    # This would typically involve:
+    # 1. Promoting read replica to primary
+    # 2. Updating DNS records
+    # 3. Scaling up DR infrastructure
+    # 4. Running database migrations if needed
+    
+    # For demo purposes, we'll simulate these steps
+    log "Simulating service restoration steps..."
+    sleep 30  # Simulate promotion time
+    
+    END_TIME=$(date +%s)
+    RECOVERY_TIME=$((END_TIME - START_TIME))
+    
+    log "✓ Recovery completed in ${RECOVERY_TIME} seconds"
+    
+    # Check if RTO is met
+    if [ $RECOVERY_TIME -le 900 ]; then  # 15 minutes
+        log "✓ RTO requirement met (< 15 minutes)"
+    else
+        warn "RTO requirement not met. Recovery took ${RECOVERY_TIME} seconds"
+    fi
+}
+
+# Main test execution
+main() {
+    log "Starting DR test for $APP_NAME"
+    log "Primary Region: $PRIMARY_REGION"
+    log "DR Region: $DR_REGION"
+    
+    # Run tests
+    test_health_checks
+    test_data_consistency
+    test_database_failover
+    test_application_failover
+    measure_recovery_time
+    
+    log "DR testing completed successfully!"
+}
+
+# Execute main function
+main "$@"
 ```
 
-### Communication Templates
+### 2. Chaos Engineering with AWS Fault Injection Simulator
 
-**Internal Communication Template:**
-```
-SUBJECT: [URGENT] Disaster Recovery Activation - Action Required
+```yaml
+# FIS experiment template
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Chaos engineering experiment for DR testing'
 
-Team,
+Resources:
+  DRChaosExperiment:
+    Type: AWS::FIS::ExperimentTemplate
+    Properties:
+      Description: 'Test application resilience by stopping EC2 instances'
+      RoleArn: !GetAtt FISRole.Arn
+      Actions:
+        StopInstances:
+          ActionId: 'aws:ec2:stop-instances'
+          Parameters:
+            startInstancesAfterDuration: 'PT10M'  # 10 minutes
+          Targets:
+            Instances: 'WebServerInstances'
+      Targets:
+        WebServerInstances:
+          ResourceType: 'aws:ec2:instance'
+          ResourceTags:
+            Environment: 'production'
+            Application: 'myapp'
+          SelectionMode: 'PERCENT(50)'  # Stop 50% of instances
+      StopConditions:
+        - Source: 'aws:cloudwatch:alarm'
+          Value: !Ref HighErrorRateAlarm
+      Tags:
+        - Key: 'Name'
+          Value: 'DR-Chaos-Test'
 
-We have activated our disaster recovery procedures due to [INCIDENT_TYPE] affecting our primary systems.
-
-CURRENT STATUS:
-- Incident Start Time: [TIME]
-- Estimated Recovery Time: [ETA]
-- Systems Affected: [SYSTEMS_LIST]
-- Customer Impact: [IMPACT_DESCRIPTION]
-
-ACTIONS TAKEN:
-- [ACTION_1]
-- [ACTION_2]
-- [ACTION_3]
-
-NEXT STEPS:
-- [NEXT_STEP_1] - Owner: [NAME] - ETA: [TIME]
-- [NEXT_STEP_2] - Owner: [NAME] - ETA: [TIME]
-
-COMMUNICATION SCHEDULE:
-Next update in 30 minutes or upon significant change.
-
-POINT OF CONTACT:
-Incident Commander: [NAME] - [PHONE] - [EMAIL]
-
-[SIGNATURE]
-```
-
-**Customer Communication Template:**
-```
-SUBJECT: Service Update - Temporary Service Disruption
-
-Dear Valued Customers,
-
-We are currently experiencing a service disruption that began at [TIME] [TIMEZONE]. We want to keep you informed about the situation and our response.
-
-WHAT HAPPENED:
-[Brief, non-technical explanation of the issue]
-
-CURRENT STATUS:
-- Services Affected: [LIST]
-- Services Operating Normally: [LIST]
-- Estimated Resolution Time: [ETA]
-
-WHAT WE'RE DOING:
-Our engineering team has activated our disaster recovery procedures and is working to restore full service. We have implemented our backup systems to minimize disruption.
-
-WHAT YOU CAN DO:
-- [WORKAROUND_1]
-- [WORKAROUND_2]
-- Monitor our status page: status.company.com
-
-We sincerely apologize for any inconvenience and will provide updates every 30 minutes until resolution.
-
-For urgent support needs, please contact: support@company.com
-
-Thank you for your patience.
-
-[COMPANY_NAME] Team
+  FISRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: fis.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSFaultInjectionSimulatorEC2Access
 ```
 
-This comprehensive guide now covers every aspect of AWS disaster recovery, making it the ultimate go-to reference for DR planning and implementation across all scenarios and compliance requirements.
+---
+
+## Cost Optimization
+
+### 1. DR Cost Analysis Script
+
+```python
+import boto3
+import json
+from datetime import datetime, timedelta
+
+class DRCostAnalyzer:
+    def __init__(self):
+        self.ce_client = boto3.client('ce')
+        self.ec2_client = boto3.client('ec2')
+        self.rds_client = boto3.client('rds')
+        
+    def get_dr_costs(self, days=30):
+        """Get DR-related costs for the last N days"""
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=days)
+        
+        response = self.ce_client.get_cost_and_usage(
+            TimePeriod={
+                'Start': start_date.strftime('%Y-%m-%d'),
+                'End': end_date.strftime('%Y-%m-%d')
+            },
+            Granularity='DAILY',
+            Metrics=['BlendedCost'],
+            GroupBy=[
+                {'Type': 'DIMENSION', 'Key': 'SERVICE'},
+                {'Type': 'TAG', 'Key': 'Purpose'}
+            ],
+            Filter={
+                'Tags': {
+                    'Key': 'Purpose',
+                    'Values': ['DR', 'DisasterRecovery']
+                }
+            }
+        )
+        
+        return response
+    
+    def analyze_unused_dr_resources(self):
+        """Identify unused DR resources that can be optimized"""
+        unused_resources = []
+        
+        # Check for unused EBS volumes
+        volumes = self.ec2_client.describe_volumes(
+            Filters=[
+                {'Name': 'state', 'Values': ['available']},
+                {'Name': 'tag:Purpose', 'Values': ['DR']}
+            ]
+        )
+        
+        for volume in volumes['Volumes']:
+            unused_resources.append({
+                'type': 'EBS Volume',
+                'id': volume['VolumeId'],
+                'size': volume['Size'],
+                'cost_per_month': volume['Size'] * 0.10  # Approximate cost
+            })
+        
+        # Check for stopped instances that could be terminated
+        instances = self.ec2_client.describe_instances(
+            Filters=[
+                {'Name': 'instance-state-name', 'Values': ['stopped']},
+                {'Name': 'tag:Purpose', 'Values': ['DR']}
+            ]
+        )
+        
+        for reservation in instances['Reservations']:
+            for instance in reservation['Instances']:
+                unused_resources.append({
+                    'type': 'EC2 Instance',
+                    'id': instance['InstanceId'],
+                    'instance_type': instance['InstanceType'],
+                    'estimated_monthly_cost': self.get_instance_cost(instance['InstanceType'])
+                })
+        
+        return unused_resources
+    
+    def get_instance_cost(self, instance_type):
+        """Get approximate monthly cost for instance type"""
+        # Simplified cost calculation - in reality, use AWS Pricing API
+        cost_map = {
+            't3.micro': 8.47,
+            't3.small': 16.94,
+            't3.medium': 33.89,
+            'm5.large': 70.08,
+            'm5.xlarge': 140.16
+        }
+        return cost_map.get(instance_type, 50.0)
+    
+    def recommend_optimizations(self):
+        """Provide cost optimization recommendations"""
+        recommendations = []
+        
+        # Check RDS instances for right-sizing opportunities
+        db_instances = self.rds_client.describe_db_instances()
+        
+        for db in db_instances['DBInstances']:
+            if 'DR' in db.get('DBInstanceIdentifier', ''):
+                # Get CloudWatch metrics to determine if instance is oversized
+                recommendations.append({
+                    'resource': db['DBInstanceIdentifier'],
+                    'current_class': db['DBInstanceClass'],
+                    'recommendation': 'Consider using smaller instance class for DR replica',
+                    'potential_savings': '30-50%'
+                })
+        
+        return recommendations
+
+# Usage example
+analyzer = DRCostAnalyzer()
+costs = analyzer.get_dr_costs()
+unused = analyzer.analyze_unused_dr_resources()
+recommendations = analyzer.recommend_optimizations()
+
+print(f"DR costs: {json.dumps(costs, indent=2, default=str)}")
+print(f"Unused resources: {json.dumps(unused, indent=2)}")
+print(f"Recommendations: {json.dumps(recommendations, indent=2)}")
+```
+
+### 2. Automated DR Resource Scheduling
+
+```python
+import boto3
+import json
+from datetime import datetime
+
+def lambda_handler(event, context):
+    """
+    Lambda function to automatically start/stop DR resources based on schedule
+    """
+    ec2 = boto3.client('ec2')
+    rds = boto3.client('rds')
+    
+    action = event.get('action', 'stop')  # 'start' or 'stop'
+    
+    if action == 'stop':
+        # Stop non-critical DR resources during off-hours
+        stop_dr_resources(ec2, rds)
+    elif action == 'start':
+        # Start DR resources during business hours
+        start_dr_resources(ec2, rds)
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps(f'DR resources {action} operation completed')
+    }
+
+def stop_dr_resources(ec2, rds):
+    """Stop DR resources to save costs"""
+    
+    # Stop EC2 instances tagged for DR (non-critical)
+    instances = ec2.describe_instances(
+        Filters=[
+            {'Name': 'tag:Purpose', 'Values': ['DR']},
+            {'Name': 'tag:Critical', 'Values': ['false']},
+            {'Name': 'instance-state-name', 'Values': ['running']}
+        ]
+    )
+    
+    for reservation in instances['Reservations']:
+        for instance in reservation['Instances']:
+            ec2.stop_instances(InstanceIds=[instance['InstanceId']])
+            print(f"Stopped instance: {instance['InstanceId']}")
+    
+    # Stop RDS instances (non-production DR replicas)
+    db_instances = rds.describe_db_instances()
+    for db in db_instances['DBInstances']:
+        if ('dr' in db['DBInstanceIdentifier'].lower() and 
+            'non-prod' in db.get('TagList', [])):
+            rds.stop_db_instance(DBInstanceIdentifier=db['DBInstanceIdentifier'])
+            print(f"Stopped RDS instance: {db['DBInstanceIdentifier']}")
+
+def start_dr_resources(ec2, rds):
+    """Start DR resources for business hours"""
+    
+    # Start EC2 instances
+    instances = ec2.describe_instances(
+        Filters=[
+            {'Name': 'tag:Purpose', 'Values': ['DR']},
+            {'Name': 'tag:Critical', 'Values': ['false']},
+            {'Name': 'instance-state-name', 'Values': ['stopped']}
+        ]
+    )
+    
+    for reservation in instances['Reservations']:
+        for instance in reservation['Instances']:
+            ec2.start_instances(InstanceIds=[instance['InstanceId']])
+            print(f"Started instance: {instance['InstanceId']}")
+    
+    # Start RDS instances
+    db_instances = rds.describe_db_instances()
+    for db in db_instances['DBInstances']:
+        if (db['DBInstanceStatus'] == 'stopped' and 
+            'dr' in db['DBInstanceIdentifier'].lower()):
+            rds.start_db_instance(DBInstanceIdentifier=db['DBInstanceIdentifier'])
+            print(f"Started RDS instance: {db['DBInstanceIdentifier']}")
+```
+
+---
+
+## Interview Scenarios
+
+### Scenario 1: E-commerce Platform DR Design
+
+**Question**: "Design a DR solution for an e-commerce platform that processes $1M in revenue per hour during peak times. The platform uses microservices architecture with RDS MySQL, Redis, and S3. What's your approach?"
+
+**Answer Framework**:
+
+1. **Requirements Analysis**:
+   - RTO: < 15 minutes (high revenue impact)
+   - RPO: < 5 minutes (financial transactions)
+   - Availability: 99.99% (4 minutes downtime/month)
+
+2. **Architecture Design**:
+```
+Primary Region (us-east-1):
+├── ALB → ECS Fargate (3 AZs)
+├── RDS MySQL Multi-AZ
+├── ElastiCache Redis (Cluster Mode)
+└── S3 with Cross-Region Replication
+
+DR Region (us-west-2):
+├── ALB → ECS Fargate (Scaled down)
+├── RDS Read Replica
+├── ElastiCache Redis (Standby)
+└── S3 Replica Bucket
+```
+
+3. **Implementation Steps**:
+```bash
+# 1. Set up cross-region RDS replica
+aws rds create-db-instance-read-replica \
+  --db-instance-identifier ecommerce-dr-replica \
+  --source-db-instance-identifier arn:aws:rds:us-east-1:123456789012:db:ecommerce-primary
+
+# 2. Configure Route 53 health checks
+aws route53 create-health-check \
+  --caller-reference "ecommerce-primary-$(date +%s)" \
+  --health-check-config '{
+    "Type": "HTTPS",
+    "ResourcePath": "/api/health",
+    "FullyQualifiedDomainName": "api.ecommerce.com",
+    "Port": 443,
+    "RequestInterval": 30,
+    "FailureThreshold": 2
+  }'
+
+# 3. Set up automated failover
+aws route53 change-resource-record-sets \
+  --hosted-zone-id Z123456789 \
+  --change-batch file://failover-config.json
+```
+
+4. **Cost Optimization**:
+   - Use Spot Instances for DR region (60% cost savings)
+   - Implement automated scaling based on health checks
+   - Use S3 Intelligent Tiering for backup data
+
+5. **Testing Strategy**:
+   - Monthly failover tests during maintenance windows
+   - Chaos engineering with AWS FIS
+   - Automated recovery time measurement
+
+**Expected Results**:
+- RTO: 10-12 minutes
+- RPO: 2-3 minutes
+- Cost: 40% of primary region
+- Availability: 99.995%
+
+### Scenario 2: Multi-Tier Application with Compliance Requirements
+
+**Question**: "A healthcare application needs DR with HIPAA compliance. It has a web tier, application tier, and database tier. How do you ensure both DR and compliance?"
+
+**Answer Framework**:
+
+1. **Compliance Requirements**:
+   - Data encryption at rest and in transit
+   - Audit logging for all access
+   - Data residency requirements
+   - Access controls and authentication
+
+2. **DR Architecture with Compliance**:
+```yaml
+# CloudFormation template snippet
+Resources:
+  # Encrypted RDS with automated backups
+  PrimaryDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      StorageEncrypted: true
+      KmsKeyId: !Ref DatabaseKMSKey
+      BackupRetentionPeriod: 35
+      DeletionProtection: true
+      EnableCloudwatchLogsExports:
+        - error
+        - general
+        - slow-query
+
+  # Cross-region encrypted backup
+  BackupBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !Ref BackupKMSKey
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref AccessLogsBucket
+        LogFilePrefix: backup-access-logs/
+```
+
+3. **Security Controls**:
+```python
+# Automated compliance checking
+def check_compliance():
+    checks = []
+    
+    # Verify encryption
+    rds_client = boto3.client('rds')
+    instances = rds_client.describe_db_instances()
+    
+    for db in instances['DBInstances']:
+        if not db.get('StorageEncrypted', False):
+            checks.append({
+                'resource': db['DBInstanceIdentifier'],
+                'issue': 'Storage not encrypted',
+                'severity': 'HIGH'
+            })
+    
+    # Verify backup retention
+    for db in instances['DBInstances']:
+        if db.get('BackupRetentionPeriod', 0) < 30:
+            checks.append({
+                'resource': db['DBInstanceIdentifier'],
+                'issue': 'Backup retention < 30 days',
+                'severity': 'MEDIUM'
+            })
+    
+    return checks
+```
+
+### Scenario 3: Global Application with Active-Active DR
+
+**Question**: "Design an active-active DR solution for a global SaaS application with users in US, Europe, and Asia. How do you handle data consistency and routing?"
+
+**Answer Framework**:
+
+1. **Global Architecture**:
+```
+US East (Primary):
+├── CloudFront → ALB → ECS
+├── Aurora Global Database (Writer)
+├── DynamoDB Global Tables
+└── S3 Cross-Region Replication
+
+Europe (Active):
+├── CloudFront → ALB → ECS  
+├── Aurora Global Database (Reader)
+├── DynamoDB Global Tables
+└── S3 Cross-Region Replication
+
+Asia (Active):
+├── CloudFront → ALB → ECS
+├── Aurora Global Database (Reader)  
+├── DynamoDB Global Tables
+└── S3 Cross-Region Replication
+```
+
+2. **Data Consistency Strategy**:
+```python
+# Implement eventual consistency with conflict resolution
+class GlobalDataManager:
+    def __init__(self):
+        self.dynamodb = boto3.resource('dynamodb')
+        self.table = self.dynamodb.Table('UserProfiles')
+    
+    def update_user_profile(self, user_id, updates):
+        # Add timestamp and region for conflict resolution
+        item = {
+            'userId': user_id,
+            'lastModified': int(time.time() * 1000),
+            'modifiedBy': boto3.Session().region_name,
+            **updates
+        }
+        
+        # Use conditional writes to prevent conflicts
+        try:
+            self.table.put_item(
+                Item=item,
+                ConditionExpression='attribute_not_exists(lastModified) OR lastModified < :timestamp',
+                ExpressionAttributeValues={':timestamp': item['lastModified']}
+            )
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                # Handle conflict - implement last-writer-wins or custom logic
+                return self.resolve_conflict(user_id, item)
+            raise
+```
+
+3. **Traffic Routing**:
+```bash
+# Route 53 geolocation routing
+aws route53 change-resource-record-sets \
+  --hosted-zone-id Z123456789 \
+  --change-batch '{
+    "Changes": [{
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "api.myapp.com",
+        "Type": "A",
+        "SetIdentifier": "US",
+        "GeoLocation": {"CountryCode": "US"},
+        "TTL": 60,
+        "ResourceRecords": [{"Value": "1.2.3.4"}]
+      }
+    }, {
+      "Action": "CREATE", 
+      "ResourceRecordSet": {
+        "Name": "api.myapp.com",
+        "Type": "A",
+        "SetIdentifier": "EU",
+        "GeoLocation": {"ContinentCode": "EU"},
+        "TTL": 60,
+        "ResourceRecords": [{"Value": "5.6.7.8"}]
+      }
+    }]
+  }'
+```
+
+### Scenario 4: Cost-Optimized DR for Startup
+
+**Question**: "A startup needs DR but has budget constraints. They can tolerate 4-hour RTO and 1-hour RPO. Design a cost-effective solution."
+
+**Answer Framework**:
+
+1. **Budget-Conscious Architecture**:
+```
+Primary Region:
+├── Single AZ deployment
+├── RDS with automated backups
+├── EBS snapshots
+└── S3 Standard storage
+
+DR Strategy:
+├── Cross-region S3 replication (IA storage)
+├── RDS automated backups only
+├── AMI snapshots for quick recovery
+└── Infrastructure as Code for rapid deployment
+```
+
+2. **Cost Optimization Techniques**:
+```python
+# Automated backup lifecycle management
+def setup_cost_optimized_backups():
+    s3_client = boto3.client('s3')
+    
+    # Configure S3 lifecycle policy
+    lifecycle_config = {
+        'Rules': [
+            {
+                'ID': 'DR-Backup-Lifecycle',
+                'Status': 'Enabled',
+                'Filter': {'Prefix': 'backups/'},
+                'Transitions': [
+                    {
+                        'Days': 30,
+                        'StorageClass': 'STANDARD_IA'
+                    },
+                    {
+                        'Days': 90,
+                        'StorageClass': 'GLACIER'
+                    },
+                    {
+                        'Days': 365,
+                        'StorageClass': 'DEEP_ARCHIVE'
+                    }
+                ]
+            }
+        ]
+    }
+    
+    s3_client.put_bucket_lifecycle_configuration(
+        Bucket='startup-dr-backups',
+        LifecycleConfiguration=lifecycle_config
+    )
+
+# Spot instance recovery script
+def deploy_dr_infrastructure():
+    ec2 = boto3.client('ec2')
+    
+    # Launch spot instances for cost savings
+    response = ec2.request_spot_instances(
+        SpotPrice='0.05',  # 70% savings vs on-demand
+        InstanceCount=2,
+        LaunchSpecification={
+            'ImageId': 'ami-12345678',  # Pre-configured AMI
+            'InstanceType': 't3.medium',
+            'KeyName': 'startup-key',
+            'SecurityGroups': ['dr-security-group'],
+            'UserData': base64.b64encode(startup_script.encode()).decode()
+        }
+    )
+    
+    return response
+```
+
+3. **Recovery Automation**:
+```bash
+#!/bin/bash
+# Quick recovery script for startup DR
+
+# 1. Restore RDS from latest automated backup
+LATEST_BACKUP=$(aws rds describe-db-snapshots \
+  --db-instance-identifier startup-prod \
+  --snapshot-type automated \
+  --query 'DBSnapshots | sort_by(@, &SnapshotCreateTime) | [-1].DBSnapshotIdentifier' \
+  --output text)
+
+aws rds restore-db-instance-from-db-snapshot \
+  --db-instance-identifier startup-dr-restored \
+  --db-snapshot-identifier $LATEST_BACKUP
+
+# 2. Launch application instances from AMI
+aws ec2 run-instances \
+  --image-id ami-12345678 \
+  --count 2 \
+  --instance-type t3.medium \
+  --key-name startup-key \
+  --security-group-ids sg-12345678 \
+  --user-data file://startup-script.sh
+
+# 3. Update DNS to point to DR region
+aws route53 change-resource-record-sets \
+  --hosted-zone-id Z123456789 \
+  --change-batch file://dr-dns-update.json
+```
+
+**Expected Results**:
+- Monthly DR cost: < $200
+- RTO: 2-3 hours (within 4-hour requirement)
+- RPO: 30 minutes (better than 1-hour requirement)
+- Recovery success rate: 95%
+
+---
+
+## Key Interview Talking Points
+
+### 1. Business Impact Quantification
+- "Reduced potential revenue loss from $1M/hour to $50K during DR events"
+- "Achieved 99.99% availability, exceeding SLA requirements"
+- "Optimized DR costs by 60% through automated resource scheduling"
+
+### 2. Technical Depth
+- "Implemented Aurora Global Database with <1 second cross-region replication"
+- "Used Route 53 health checks with 30-second intervals and 3-failure threshold"
+- "Automated failover reduces manual intervention from 45 minutes to 5 minutes"
+
+### 3. Operational Excellence
+- "Conducted monthly DR tests with automated rollback procedures"
+- "Implemented chaos engineering to validate system resilience"
+- "Created runbooks with step-by-step recovery procedures"
+
+### 4. Cost Optimization
+- "Used S3 Intelligent Tiering to reduce backup storage costs by 40%"
+- "Implemented spot instances in DR region for 70% compute cost savings"
+- "Automated resource scheduling saves $10K/month in off-hours"
+
+### 5. Compliance & Security
+- "Ensured HIPAA compliance with end-to-end encryption and audit logging"
+- "Implemented cross-account IAM roles for secure DR operations"
+- "Maintained data residency requirements across all regions"
+
+This comprehensive guide covers all aspects of AWS DR and business continuity, providing practical examples and real-world scenarios perfect for interview preparation. Each section includes working code, CLI commands, and quantified results that demonstrate deep technical knowledge and business impact understanding.

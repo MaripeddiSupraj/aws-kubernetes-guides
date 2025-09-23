@@ -1,0 +1,3 @@
+[console_scripts]
+gke-optimize = gke_cost_optimizer.main:main
+gke-optimizer = gke_cost_optimizer.main:main

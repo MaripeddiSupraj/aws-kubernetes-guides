@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gke-cost-optimizer"
+version = "1.0.0"
+description = "Intelligent GKE cluster cost optimization agent"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "DevOps Team", email = "devops@company.com"}
+]
+keywords = ["gke", "kubernetes", "cost-optimization", "gcp", "devops"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "kubernetes>=28.1.0",
+    "google-cloud-container>=2.32.0",
+    "google-cloud-billing>=1.12.0",
+    "google-cloud-monitoring>=2.16.0",
+    "pandas>=2.1.4",
+    "requests>=2.31.0",
+    "pyyaml>=6.0.1",
+    "rich>=13.7.0",
+    "click>=8.1.7",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0",
+    "flake8>=6.0",
+    "mypy>=1.0",
+]
+
+[project.scripts]
+gke-optimizer = "gke_cost_optimizer.main:main"
+gke-optimize = "gke_cost_optimizer.main:main"
+
+[project.urls]
+Homepage = "https://github.com/company/gke-cost-optimizer"
+Repository = "https://github.com/company/gke-cost-optimizer.git"
+Issues = "https://github.com/company/gke-cost-optimizer/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"

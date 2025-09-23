@@ -1,0 +1,10 @@
+kubernetes==28.1.0
+google-cloud-container==2.32.0
+google-cloud-billing==1.12.0
+google-cloud-monitoring==2.16.0
+pandas==2.1.4
+requests==2.31.0
+pyyaml==6.0.1
+rich==13.7.0
+click==8.1.7
+python-dotenv==1.0.0

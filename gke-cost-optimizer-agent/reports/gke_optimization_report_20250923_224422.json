@@ -1,0 +1,314 @@
+{
+  "metadata": {
+    "generated_at": "2025-09-23T22:44:22.588171",
+    "cluster_name": "istio-standard-cluster",
+    "report_version": "1.0"
+  },
+  "executive_summary": {
+    "current_monthly_cost": 4957.57,
+    "total_recommendations": 6,
+    "high_priority_recommendations": 3,
+    "potential_monthly_savings": 3776.19,
+    "potential_annual_savings": 45314.33,
+    "savings_percentage": 76.2,
+    "key_opportunities": [
+      "Resource rightsizing",
+      "Unused resource cleanup",
+      "Storage optimization",
+      "Node consolidation"
+    ]
+  },
+  "cluster_overview": {
+    "cluster_name": "istio-standard-cluster",
+    "kubernetes_version": "1.33.4-gke.1134000",
+    "node_count": 3,
+    "total_pods": 43,
+    "average_cpu_utilization": 792.8,
+    "average_memory_utilization": 548.7,
+    "unused_resources": {
+      "pvcs": 0,
+      "services": 0
+    },
+    "optimization_opportunities": 12
+  },
+  "cost_analysis": {
+    "current_monthly_cost": 4957.57,
+    "cost_breakdown": {
+      "Compute Engine": {
+        "cost": 3222.4204999999997,
+        "percentage": 65.0,
+        "details": {
+          "n1-standard-4": 1983.028,
+          "n1-standard-2": 1239.3925
+        }
+      },
+      "Persistent Disk": {
+        "cost": 743.6355,
+        "percentage": 15.0,
+        "details": {
+          "pd-standard": 495.757,
+          "pd-ssd": 247.8785
+        }
+      },
+      "Load Balancing": {
+        "cost": 495.757,
+        "percentage": 10.0,
+        "details": {
+          "forwarding_rules": 297.45419999999996,
+          "data_processing": 198.3028
+        }
+      },
+      "GKE Management": {
+        "cost": 247.8785,
+        "percentage": 5.0
+      },
+      "Network": {
+        "cost": 247.8785,
+        "percentage": 5.0
+      }
+    },
+    "resource_costs": {
+      "compute": 3222.4204999999997,
+      "storage": 743.6355,
+      "network": 743.6355,
+      "management": 247.8785
+    },
+    "cost_trends": {
+      "total_change_percent": 4.2038155415121,
+      "compute_trend": -4.1764675052824725,
+      "storage_trend": -1.42546215937808,
+      "network_trend": -2.2762557047307226
+    },
+    "top_cost_drivers": [
+      {
+        "service": "Compute Engine",
+        "cost": 3222.4204999999997,
+        "percentage": 65.0
+      },
+      {
+        "service": "Persistent Disk",
+        "cost": 743.6355,
+        "percentage": 15.0
+      },
+      {
+        "service": "Load Balancing",
+        "cost": 495.757,
+        "percentage": 10.0
+      },
+      {
+        "service": "GKE Management",
+        "cost": 247.8785,
+        "percentage": 5.0
+      },
+      {
+        "service": "Network",
+        "cost": 247.8785,
+        "percentage": 5.0
+      }
+    ]
+  },
+  "recommendations": {
+    "rightsizing": [
+      {
+        "title": "Reduce memory request for kubernetes-delegate-7c47b5b4f7-pkgtz",
+        "description": "Pod is using only 12.5% of requested memory. Reduce from 2.00GB to 0.33GB.",
+        "priority": "high",
+        "impact": "Reduce memory allocation by 1.68GB",
+        "effort": "low",
+        "monthly_savings": 0.5025000000000001,
+        "implementation_steps": [
+          "Update deployment/pod spec for kubernetes-delegate-7c47b5b4f7-pkgtz",
+          "Change memory request from 2.00GB to 0.33GB",
+          "Monitor for OOMKilled events",
+          "Adjust if memory pressure occurs"
+        ],
+        "risks": [
+          "Potential out-of-memory kills",
+          "Application instability",
+          "Need careful monitoring"
+        ],
+        "resources_affected": [
+          "harness-delegate-ng/kubernetes-delegate-7c47b5b4f7-pkgtz"
+        ]
+      },
+      {
+        "title": "Reduce memory request for istiod-c4c4f5685-cqx4s",
+        "description": "Pod is using only 12.5% of requested memory. Reduce from 2.00GB to 0.33GB.",
+        "priority": "high",
+        "impact": "Reduce memory allocation by 1.68GB",
+        "effort": "low",
+        "monthly_savings": 0.5025000000000001,
+        "implementation_steps": [
+          "Update deployment/pod spec for istiod-c4c4f5685-cqx4s",
+          "Change memory request from 2.00GB to 0.33GB",
+          "Monitor for OOMKilled events",
+          "Adjust if memory pressure occurs"
+        ],
+        "risks": [
+          "Potential out-of-memory kills",
+          "Application instability",
+          "Need careful monitoring"
+        ],
+        "resources_affected": [
+          "istio-system/istiod-c4c4f5685-cqx4s"
+        ]
+      }
+    ],
+    "resource_cleanup": [],
+    "node_optimization": [
+      {
+        "title": "Consolidate 3 underutilized nodes",
+        "description": "Found 3 nodes with low utilization. Consider consolidating workloads to fewer nodes.",
+        "priority": "medium",
+        "impact": "Reduce node count by up to 3",
+        "effort": "medium",
+        "monthly_savings": 1611.2102499999999,
+        "implementation_steps": [
+          "Analyze pod placement and resource requirements",
+          "Use node affinity to consolidate workloads",
+          "Implement cluster autoscaler for automatic scaling",
+          "Consider using smaller node types with higher density"
+        ],
+        "risks": [
+          "Reduced fault tolerance",
+          "Potential resource contention",
+          "Need careful capacity planning"
+        ],
+        "resources_affected": [
+          "gke-istio-standard-clust-default-pool-244e512f-1vdl",
+          "gke-istio-standard-clust-default-pool-263cd0d3-x8fx",
+          "gke-istio-standard-clust-default-pool-b5ac660d-dhj8"
+        ]
+      },
+      {
+        "title": "Use preemptible instances for fault-tolerant workloads",
+        "description": "Migrate suitable workloads to preemptible instances for significant cost savings.",
+        "priority": "medium",
+        "impact": "Up to 70% reduction in compute costs for eligible workloads",
+        "effort": "high",
+        "monthly_savings": 676.7083049999999,
+        "implementation_steps": [
+          "Identify fault-tolerant workloads (batch jobs, stateless apps)",
+          "Create separate node pools with preemptible instances",
+          "Use node selectors to schedule appropriate workloads",
+          "Implement proper handling for preemption events"
+        ],
+        "risks": [
+          "Workload interruptions due to preemption",
+          "Not suitable for critical applications",
+          "Need robust restart mechanisms"
+        ],
+        "resources_affected": [
+          "cluster-wide"
+        ]
+      }
+    ],
+    "storage_optimization": [],
+    "cost_optimization": [
+      {
+        "title": "Consider Committed Use Discounts (CUDs)",
+        "description": "With monthly spend of $4957.57, committed use discounts could provide significant savings.",
+        "priority": "high",
+        "impact": "Up to 30% reduction in compute costs",
+        "effort": "low",
+        "monthly_savings": 1487.271,
+        "implementation_steps": [
+          "Analyze historical usage patterns",
+          "Purchase 1-year or 3-year committed use discounts",
+          "Monitor usage to ensure commitment utilization",
+          "Adjust commitments based on growth patterns"
+        ],
+        "risks": [
+          "Commitment to minimum usage levels",
+          "Reduced flexibility for scaling down",
+          "Penalty for under-utilization"
+        ],
+        "resources_affected": [
+          "billing-account"
+        ]
+      }
+    ],
+    "performance_optimization": [
+      {
+        "title": "Set resource limits for better resource management",
+        "description": "Many pods lack resource limits, which can lead to resource contention.",
+        "priority": "medium",
+        "impact": "Improved cluster stability and resource utilization",
+        "effort": "medium",
+        "monthly_savings": 0,
+        "implementation_steps": [
+          "Analyze application resource usage patterns",
+          "Set appropriate CPU and memory limits",
+          "Implement resource quotas at namespace level",
+          "Monitor for resource throttling"
+        ],
+        "risks": [
+          "Application throttling if limits are too low",
+          "Need careful tuning based on workload patterns",
+          "Potential performance impact"
+        ],
+        "resources_affected": [
+          "cluster-wide"
+        ]
+      }
+    ]
+  },
+  "implementation_roadmap": {
+    "immediate": [
+      {
+        "title": "Consider Committed Use Discounts (CUDs)",
+        "category": "cost_optimization",
+        "savings": 1487.271,
+        "effort": "low"
+      },
+      {
+        "title": "Reduce memory request for kubernetes-delegate-7c47b5b4f7-pkgtz",
+        "category": "rightsizing",
+        "savings": 0.5025000000000001,
+        "effort": "low"
+      },
+      {
+        "title": "Reduce memory request for istiod-c4c4f5685-cqx4s",
+        "category": "rightsizing",
+        "savings": 0.5025000000000001,
+        "effort": "low"
+      }
+    ],
+    "short_term": [],
+    "long_term": [
+      {
+        "title": "Consolidate 3 underutilized nodes",
+        "category": "node_optimization",
+        "savings": 1611.2102499999999,
+        "effort": "medium"
+      },
+      {
+        "title": "Use preemptible instances for fault-tolerant workloads",
+        "category": "node_optimization",
+        "savings": 676.7083049999999,
+        "effort": "high"
+      },
+      {
+        "title": "Set resource limits for better resource management",
+        "category": "performance_optimization",
+        "savings": 0,
+        "effort": "medium"
+      }
+    ]
+  },
+  "risk_assessment": {
+    "total_recommendations": 6,
+    "risk_distribution": {
+      "low": 0,
+      "medium": 0,
+      "high": 6
+    },
+    "risk_mitigation_strategies": [
+      "Start with low-risk, high-impact recommendations",
+      "Implement changes in non-production environments first",
+      "Monitor applications closely after changes",
+      "Have rollback plans for all modifications",
+      "Consider gradual rollout for high-risk changes"
+    ]
+  }
+}

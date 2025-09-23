@@ -1,0 +1,100 @@
+# GKE Cost Optimizer Agent Configuration
+
+# GCP Configuration
+gcp:
+  project_id: "${GCP_PROJECT_ID}"
+  cluster_name: "${GKE_CLUSTER_NAME}"
+  zone: "${GCP_ZONE}"
+  region: "${GCP_REGION}"
+
+# Optimization Thresholds
+thresholds:
+  cpu_underutilization: 20.0      # Below 20% CPU usage
+  memory_underutilization: 30.0   # Below 30% memory usage
+  node_underutilization: 40.0     # Below 40% node usage
+  pvc_unused_days: 7              # Unused for 7+ days
+  service_unused_days: 3          # Unused for 3+ days
+
+# Cost Analysis Settings
+cost_analysis:
+  lookback_days: 30               # Days to analyze for cost trends
+  currency: "USD"
+  
+  # Cost per resource estimates (monthly)
+  estimates:
+    node_types:
+      n1-standard-1: 24.27
+      n1-standard-2: 48.55
+      n1-standard-4: 97.09
+      e2-standard-2: 40.32
+      e2-standard-4: 80.64
+    
+    storage:
+      pd-standard: 0.04           # Per GB per month
+      pd-ssd: 0.17
+      pd-balanced: 0.10
+    
+    network:
+      load_balancer: 18.25        # Per LB per month
+      data_processing: 0.008      # Per GB
+
+# Reporting Configuration
+reporting:
+  output_directory: "reports"
+  formats: ["json", "csv"]
+  include_charts: true
+  
+  # Report sections to include
+  sections:
+    executive_summary: true
+    cluster_overview: true
+    cost_analysis: true
+    recommendations: true
+    implementation_roadmap: true
+    risk_assessment: true
+
+# Monitoring and Alerting
+monitoring:
+  enable_metrics: true
+  metrics_retention_days: 90
+  
+  # Alert thresholds
+  alerts:
+    cost_increase_threshold: 20   # Alert if costs increase by 20%
+    utilization_threshold: 10     # Alert if utilization drops below 10%
+    
+# Automation Settings
+automation:
+  continuous_mode: false
+  scan_interval_hours: 6
+  auto_apply_safe_recommendations: false
+  
+  # Safe recommendations that can be auto-applied
+  safe_recommendations:
+    - "unused_pvc_cleanup"
+    - "unused_service_cleanup"
+    # Note: Resource rightsizing requires manual approval
+
+# Integration Settings
+integrations:
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    
+  email:
+    enabled: false
+    smtp_server: "${SMTP_SERVER}"
+    recipients: []
+    
+  jira:
+    enabled: false
+    server: "${JIRA_SERVER}"
+    project_key: "${JIRA_PROJECT}"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"
+  file: "logs/optimizer.log"
+  max_size_mb: 100
+  backup_count: 5

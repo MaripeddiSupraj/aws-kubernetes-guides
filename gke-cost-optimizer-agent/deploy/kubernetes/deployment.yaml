@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gke-cost-optimizer
+  namespace: kube-system
+  labels:
+    app: gke-cost-optimizer
+    version: v1.0.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gke-cost-optimizer
+  template:
+    metadata:
+      labels:
+        app: gke-cost-optimizer
+    spec:
+      serviceAccountName: gke-cost-optimizer
+      containers:
+      - name: optimizer
+        image: gcr.io/PROJECT_ID/gke-cost-optimizer:latest
+        imagePullPolicy: Always
+        env:
+        - name: GCP_PROJECT_ID
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: project-id
+        - name: GKE_CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: cluster-name
+        - name: GCP_ZONE
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: zone
+        - name: CONTINUOUS_MODE
+          value: "true"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /app/config
+          readOnly: true
+        - name: reports-volume
+          mountPath: /app/reports
+        - name: service-account-volume
+          mountPath: /app/credentials
+          readOnly: true
+      volumes:
+      - name: config-volume
+        configMap:
+          name: optimizer-config
+      - name: reports-volume
+        persistentVolumeClaim:
+          claimName: optimizer-reports
+      - name: service-account-volume
+        secret:
+          secretName: gcp-service-account
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gke-cost-optimizer
+  namespace: kube-system
+  annotations:
+    iam.gke.io/gcp-service-account: gke-optimizer@PROJECT_ID.iam.gserviceaccount.com
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gke-cost-optimizer
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "pods", "services", "persistentvolumeclaims", "namespaces", "resourcequotas", "endpoints"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets", "daemonsets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["nodes", "pods"]
+  verbs: ["get", "list"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gke-cost-optimizer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gke-cost-optimizer
+subjects:
+- kind: ServiceAccount
+  name: gke-cost-optimizer
+  namespace: kube-system
